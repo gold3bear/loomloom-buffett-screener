@@ -14,7 +14,18 @@ function argsOf(argv) {
   return args;
 }
 
-function clean(value) { return String(value ?? "").replace(/\|/g, "\\|").replace(/\r?\n/g, " ").trim(); }
+// 修复 M-2:转义 Markdown 特殊字符,防 HTML 注入 / 视觉欺骗 / 链接污染。
+// 反斜杠必须最先处理(它本身是转义前缀),其余顺序不敏感。
+function clean(value) {
+  return String(value ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/[*_`]/g, "\\$&")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\r?\n/g, " ")
+    .trim();
+}
 function list(values, empty = "无") { return values?.length ? values.map((value) => `- ${clean(typeof value === "string" ? value : JSON.stringify(value))}`).join("\n") : `- ${empty}`; }
 
 function decisionLabel(value) {

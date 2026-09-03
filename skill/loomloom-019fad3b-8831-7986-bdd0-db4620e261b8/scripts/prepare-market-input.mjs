@@ -52,4 +52,8 @@ async function main() {
   process.stdout.write(`已生成 ${request.inputRows.length} 行 Market 请求：${args.output}\n`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main().catch((error) => { process.stderr.write(`请求生成错误：${error.message}\n`); process.exitCode = 2; });
+if (import.meta.url === `file://${process.argv[1]}`) main().catch((error) => {
+  // 修复 M-10:输入预检失败(业务问题)走 exit 1,参数/IO 错(系统问题)走 exit 2
+  if (/输入预检失败/.test(error.message)) process.exitCode = 1;
+  else { process.stderr.write(`请求生成错误：${error.message}\n`); process.exitCode = 2; }
+});

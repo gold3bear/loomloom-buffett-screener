@@ -6,6 +6,18 @@ import process from "node:process";
 const DIMENSIONS = ["business", "moat", "financial", "valuation"];
 const WEIGHTS = { understandability: 0.10, business_model: 0.20, moat: 0.20, management_capital_allocation: 0.15, financial_quality: 0.20, valuation_opportunity_cost: 0.15 };
 const CONFIDENCE = { high: 3, medium: 2, low: 1 };
+// 修复 M-4:每维度 evidence_records 数量上限 + 单条 source_value 字符串长度上限,防止异常输出撑爆报告
+const MAX_EVIDENCE_RECORDS = 50;
+const MAX_SOURCE_VALUE_CHARS = 2000;
+const MAX_UNKNOWN_ITEMS = 200;
+// 修复 M-5:评分与置信度阈值集中,方便后续与 decision-policy.md 同步
+const DEEP_RESEARCH_THRESHOLD = 75;
+const WATCHLIST_THRESHOLD = 60;
+const WEAK_SCORE_THRESHOLD = 30;
+const HIGH_CONFIDENCE_MIN_EVIDENCE = 8;
+const HIGH_CONFIDENCE_MAX_UNKNOWNS = 3;
+const UNKNOWN_WARN_THRESHOLD = 3;
+const EXCESSIVE_REJECTED_EVIDENCE_MIN = 6;
 
 function argsOf(argv) {
   const args = { pretty: false };
@@ -31,16 +43,38 @@ function parseJson(value, label) {
 
 const PACKET_LABELS = { IDENTITY: "identityPacket", FINANCIAL: "financialPacket", QUALITATIVE: "qualitativePacket" };
 
+// 修复 H-2:从 prompt 字符串里抽 JSON。
+// 1) 支持 ```json / ``` 围栏（云端常见格式）
+// 2) 找到下一个 \nLABEL: 前先用 JSON.parse 试探,避免误切 JSON 内含 \nLABEL: 的字符串
+// 3) 任何异常返回 null,调用方负责 fallback
 function extractPacketFromPrompt(prompt, label) {
   const idx = prompt.indexOf(label + ":");
   if (idx === -1) return null;
   const afterLabel = prompt.slice(idx + label.length + 1);
   let endIdx = afterLabel.length;
   for (const otherLabel of Object.keys(PACKET_LABELS)) {
+    if (otherLabel === label) continue;
     const otherIdx = afterLabel.indexOf("\n" + otherLabel + ":");
     if (otherIdx > 0 && otherIdx < endIdx) endIdx = otherIdx;
   }
-  const jsonStr = afterLabel.slice(0, endIdx).trim();
+  let jsonStr = afterLabel.slice(0, endIdx).trim();
+  // 移除 ```json ... ``` 围栏（云端有时用 markdown 包裹 JSON）
+  const fenceMatch = jsonStr.match(/^```(?:json)?\s*([\s\S]*?)\s*```\s*$/);
+  if (fenceMatch) jsonStr = fenceMatch[1].trim();
+  // 用 JSON.parse 试探:取可能的最长前缀直到能 parse 成功,避免误切
+  let lastValid = -1;
+  for (let i = jsonStr.length; i > 0; i -= 1) {
+    const candidate = jsonStr.slice(0, i).trim();
+    if (!candidate.endsWith("}") && !candidate.endsWith("]")) continue;
+    try {
+      const parsed = JSON.parse(candidate);
+      if (isObject(parsed)) {
+        lastValid = candidate.length;
+        break;
+      }
+    } catch { /* 继续缩短 */ }
+  }
+  if (lastValid > 0) jsonStr = jsonStr.slice(0, lastValid);
   try { return JSON.parse(jsonStr); } catch { return null; }
 }
 
@@ -49,11 +83,20 @@ function stepsToInput(outer) {
   if (!isObject(steps)) return null;
   const result = {};
   for (const step of Object.values(steps)) {
-    if (!isObject(step) || typeof step.prompt !== "string") continue;
-    for (const [label, key] of Object.entries(PACKET_LABELS)) {
-      if (result[key]) continue;
-      const packet = extractPacketFromPrompt(step.prompt, label);
-      if (packet) result[key] = packet;
+    if (!isObject(step)) continue;
+    // 优先 1：云端若把 packet 作为结构化 input 字段传入(优于嵌入 prompt 字符串)
+    if (isObject(step.input)) {
+      for (const packetKey of Object.values(PACKET_LABELS)) {
+        if (!result[packetKey] && step.input[packetKey]) result[packetKey] = step.input[packetKey];
+      }
+    }
+    // 优先 2：退化用 prompt 字符串抽取
+    if (typeof step.prompt === "string") {
+      for (const [label, key] of Object.entries(PACKET_LABELS)) {
+        if (result[key]) continue;
+        const packet = extractPacketFromPrompt(step.prompt, label);
+        if (packet) result[key] = packet;
+      }
     }
     if (result.identityPacket && result.financialPacket && result.qualitativePacket) break;
   }
@@ -61,9 +104,29 @@ function stepsToInput(outer) {
 }
 
 function parseInput(row) {
-  const outer = typeof row.inputJson === "string" ? JSON.parse(row.inputJson) : row.inputJson ?? row.input ?? {};
+  let outer = {};
+  try {
+    outer = typeof row.inputJson === "string" ? JSON.parse(row.inputJson) : (row.inputJson ?? row.input ?? {});
+  } catch { return {}; }
+  if (!isObject(outer)) return {};
+
+  // 优先 1：outer 自身就含三个 packet 对象(非字符串)。字符串 packet 留给退化路径 JSON.parse。
+  const directPackets = {};
+  for (const packetKey of Object.values(PACKET_LABELS)) {
+    if (isObject(outer[packetKey])) directPackets[packetKey] = outer[packetKey];
+  }
+  if (Object.keys(directPackets).length >= 3) return directPackets;
+
+  // 优先 2：outer.inputRows[0] 是标准 Market 行结构
+  if (Array.isArray(outer.inputRows) && outer.inputRows.length && isObject(outer.inputRows[0])) {
+    return outer.inputRows[0];
+  }
+
+  // 优先 3：outer.steps[].input 结构化输入 或 step.prompt 字符串抽取
   const stepsResult = stepsToInput(outer);
   if (stepsResult) return stepsResult;
+
+  // 退化：把每个 value 当 JSON 字符串解析
   const input = {};
   for (const [key, value] of Object.entries(outer)) {
     if (typeof value !== "string") input[key] = value;
@@ -77,6 +140,8 @@ function parseInput(row) {
 
 function classify(value) {
   if (!isObject(value)) return null;
+  // 修复 M-6:云端可显式声明 dimension,优先于字段名启发式匹配(避免 LLM 串行输出导致错分类)
+  if (typeof value.dimension === "string" && DIMENSIONS.includes(value.dimension)) return value.dimension;
   if ("business_model_score" in value && "understandability_score" in value) return "business";
   if ("moat_score" in value && "capital_allocation_score" in value) return "moat";
   if ("financial_quality_score" in value && "balance_sheet_score" in value) return "financial";
@@ -110,9 +175,12 @@ function reviewsOf(row, errors) {
 function pathParts(path) { return String(path).replace(/\[(\d+)\]/g, ".$1").split(".").filter(Boolean); }
 
 function getPath(root, path) {
+  // 修复 M-7:用 hasOwnProperty.call 而非 `in`,避免 `identityPacket.toString` 之类的原型链属性被误解析。
+  // 之前会被 same() 兜住,但 auditEvidence 会输出"source_value 与输入原值不一致"误导为业务问题。
   let value = root;
   for (const part of pathParts(path)) {
-    if (value === null || value === undefined || !(part in Object(value))) return undefined;
+    if (value === null || value === undefined) return undefined;
+    if (!Object.prototype.hasOwnProperty.call(Object(value), part)) return undefined;
     value = value[part];
   }
   return value;
@@ -231,6 +299,22 @@ function mergeRow(row, index) {
   if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker)) errors.push("输入 ticker 无效");
   if (errors.length) return rejected(row, index, ticker, errors, normalized);
 
+  // 修复 M-4:每维度 evidence_records 数量与 source_value 字符串长度上限,防止异常/恶意输出撑爆报告
+  for (const [dimension, review] of Object.entries(reviews)) {
+    const records = review.evidence_records ?? [];
+    if (records.length > MAX_EVIDENCE_RECORDS) {
+      errors.push(`${dimension}.evidence_records 数量 ${records.length} 超过 ${MAX_EVIDENCE_RECORDS} 上限`);
+    }
+    for (const [i, item] of records.entries()) {
+      if (typeof item?.source_value === "string" && item.source_value.length > MAX_SOURCE_VALUE_CHARS) {
+        errors.push(`${dimension}.evidence_records[${i}].source_value 长度 ${item.source_value.length} 超过 ${MAX_SOURCE_VALUE_CHARS} 上限`);
+      }
+    }
+    if ((review.unknowns ?? []).length > MAX_UNKNOWN_ITEMS) {
+      errors.push(`${dimension}.unknowns 数量超过 ${MAX_UNKNOWN_ITEMS} 上限`);
+    }
+  }
+
   shape(reviews, errors);
   const biz = reviews.business;
   const moat = reviews.moat;
@@ -258,21 +342,38 @@ function mergeRow(row, index) {
   const veto = [];
   if (biz.circle_of_competence === "fail") veto.push("circle_of_competence_fail");
   for (const dimension of DIMENSIONS) if (evidence.byDimension[dimension] === 0) veto.push(`missing_verified_evidence_${dimension}`);
-  if ((fin.survival_risks?.length ?? 0) && fin.balance_sheet_score < 30) veto.push("survival_risk_with_weak_balance_sheet");
-  if ((moat.governance_red_flags?.length ?? 0) && components.management_capital_allocation < 30) veto.push("governance_red_flags_with_weak_management_score");
-  if ((fin.accounting_red_flags?.length ?? 0) && fin.financial_quality_score < 30) veto.push("accounting_red_flags_with_weak_financial_score");
-  if (val.margin_of_safety_score < 30) veto.push("insufficient_margin_of_safety");
+  // 生存风险 veto：balance_sheet_score 缺失或非有限数时,视同弱资产负债表,触发否决。
+  // 修复 H-1:之前用 `undefined < 30` 会得到 false,导致云端漏返该字段时 veto 静默失效。
+  const balanceSheetScore = Number(fin.balance_sheet_score);
+  if ((fin.survival_risks?.length ?? 0) && (!Number.isFinite(balanceSheetScore) || balanceSheetScore < WEAK_SCORE_THRESHOLD))
+    veto.push("survival_risk_with_weak_balance_sheet");
+  if ((moat.governance_red_flags?.length ?? 0) && components.management_capital_allocation < WEAK_SCORE_THRESHOLD) veto.push("governance_red_flags_with_weak_management_score");
+  if ((fin.accounting_red_flags?.length ?? 0) && fin.financial_quality_score < WEAK_SCORE_THRESHOLD) veto.push("accounting_red_flags_with_weak_financial_score");
+  if (val.margin_of_safety_score < WEAK_SCORE_THRESHOLD) veto.push("insufficient_margin_of_safety");
   if (val.judgment_state !== "eligible_for_manual_deep_research") veto.push("valuation_not_eligible_for_manual_deep_research");
   const valuationText = [val.summary, ...(val.positive_points ?? []), ...(val.contrary_points ?? []), ...(val.valuation_red_flags ?? [])].join("\n");
   if (forbiddenForecast(valuationText)) veto.push("forbidden_numeric_claims");
-  if (evidence.rejected.length > evidence.verified.length || evidence.rejected.length >= 6) veto.push("excessive_rejected_evidence");
+  if (evidence.rejected.length > evidence.verified.length || evidence.rejected.length >= EXCESSIVE_REJECTED_EVIDENCE_MIN) veto.push("excessive_rejected_evidence");
 
   const overall = Math.round(Object.entries(WEIGHTS).reduce((sum, [key, weight]) => sum + components[key] * weight, 0));
   const unknowns = [...new Set(DIMENSIONS.flatMap((dimension) => (reviews[dimension].unknowns ?? []).map(unknownKey).filter(Boolean)))];
   const uniqueVeto = [...new Set(veto)];
-  const auditStatus = uniqueVeto.includes("excessive_rejected_evidence") ? "fail" : evidence.rejected.length || unknowns.length > 3 ? "warn" : "pass";
-  const confidence = uniqueVeto.length ? "low" : evidence.verified.length >= 8 && unknowns.length <= 3 ? "high" : "medium";
-  const decision = uniqueVeto.length ? "pass" : biz.circle_of_competence === "uncertain" ? "watchlist" : overall >= 75 ? "deep_research" : overall >= 60 ? "watchlist" : "pass";
+  // 修复 M-1:auditStatus 反映 veto 数量——有 veto 时应为 "vetoed",与 confidence/decision 一致
+  const auditStatus = uniqueVeto.includes("excessive_rejected_evidence")
+    ? "fail"
+    : uniqueVeto.length
+      ? "vetoed"
+      : (evidence.rejected.length || unknowns.length > UNKNOWN_WARN_THRESHOLD)
+        ? "warn"
+        : "pass";
+  // 修复 M-17:confidence 表达式加显式括号与多行排版,避免 `?:` 嵌套误读
+  const confidence = uniqueVeto.length
+    ? "low"
+    : (evidence.verified.length >= HIGH_CONFIDENCE_MIN_EVIDENCE
+        && unknowns.length <= HIGH_CONFIDENCE_MAX_UNKNOWNS)
+      ? "high"
+      : "medium";
+  const decision = uniqueVeto.length ? "pass" : biz.circle_of_competence === "uncertain" ? "watchlist" : overall >= DEEP_RESEARCH_THRESHOLD ? "deep_research" : overall >= WATCHLIST_THRESHOLD ? "watchlist" : "pass";
   const eligible = decision === "deep_research" && auditStatus === "pass" && confidence !== "low" && !uniqueVeto.length;
   const market = input.financialPacket?.marketSnapshot ?? {};
   return {
