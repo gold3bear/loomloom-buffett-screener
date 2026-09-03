@@ -1,22 +1,22 @@
-# LoomLoom 美股价值初筛 Skill
+# LoomLoom US Equity Value Screening Skill
 
-面向本地 Agent 的美股长期价值批量初筛 Skill。它先在本地准备与校验数据，再通过 LoomLoom 公开 SkillBot 并行研究，最后在本地进行证据审计、否决与排序。
+A Skill for local Agents that performs batch long-term value screening of US equities. It first prepares and validates data locally, then runs a parallel research pass through the LoomLoom public SkillBot, and finally audits the evidence locally, applies hard vetos, and produces a deterministic ranking.
 
-> 仅用于研究辅助，不构成投资建议；不输出目标价、仓位或买卖指令。
+> Research aid only. Not investment advice. The Skill never outputs target prices, position sizes, or buy/sell instructions.
 
-## 先安装：给 Agent 的指令
+## Install — for the Agent
 
-将下面整段文字交给你的 Agent 即可：
+Hand the following paragraph to your Agent:
 
-> 请打开 https://github.com/gold3bear/loomloom-us-value-screening-skill ，从 Releases 下载最新的 `loomloom-us-value-screening-skill-v2.zip`。解压后，将目录 `loomloom-019fad3b-8831-7986-bdd0-db4620e261b8` 安装到本地 Agent 的 Skills 目录，保留其所有文件和目录结构。安装仅是本地文件操作，不要创建 LoomLoom 云端任务。随后阅读其中 `SKILL.md`，检查 LoomLoom CLI 是否可用，并运行 `loomloom doctor`；若尚未配置，则提示我提供自己的胜算云密钥。不要把密钥写入 Skill、仓库、日志或报告。
+> Please open https://github.com/gold3bear/loomloom-us-value-screening-skill, download the latest `loomloom-us-value-screening-skill-v2.zip` from Releases, and extract the directory `loomloom-019fad3b-8831-7986-bdd0-db4620e261b8` into the Agent's local Skills directory, preserving every file and folder beneath it. Installation is a local file operation only — do NOT create any LoomLoom cloud task. Then read the extracted `SKILL.md`, verify that the `loomloom` CLI is available, and run `loomloom doctor`. If credentials are not configured, ask me to supply my own ShengSuanyun API key. Do not write the key into the Skill, the repo, the logs, or any report.
 
-## 下载 Skill
+## Download the Skill
 
-请只从 [GitHub Releases](https://github.com/gold3bear/loomloom-us-value-screening-skill/releases/latest) 下载 `loomloom-us-value-screening-skill-v2.zip`。ZIP 不随 Git 源码提交，避免把发布制品与可审查源码混在一起。
+Get the Skill only from [GitHub Releases](https://github.com/gold3bear/loomloom-us-value-screening-skill/releases/latest). The file is `loomloom-us-value-screening-skill-v2.zip`. The ZIP is not committed to the Git source so we keep reviewable source code separate from release artifacts.
 
-## Codex 手动安装
+## Manual install with Codex
 
-在需要使用 Skill 的项目根目录执行：
+In the project root where you want to use the Skill:
 
 ```bash
 curl -L \
@@ -27,55 +27,56 @@ mkdir -p .codex/skills
 unzip -q /tmp/loomloom-us-value-screening-skill-v2.zip -d .codex/skills
 ```
 
-安装完成后，应存在：
+After install, the path below must exist:
 
 ```text
 .codex/skills/loomloom-019fad3b-8831-7986-bdd0-db4620e261b8/SKILL.md
 ```
 
-全局安装时，将 `.codex/skills` 替换为 `~/.codex/skills`。其他 Agent 使用各自的本地 Skills 目录，但解压出的 Skill 目录名必须保持不变。
+For a global install, replace `.codex/skills` with `~/.codex/skills`. Other Agents use their own Skills directory, but the extracted Skill directory name must be preserved exactly.
 
-## 配置 LoomLoom CLI
+## Configure the LoomLoom CLI
 
-本 Skill 的云端研究步骤依赖 LoomLoom CLI。CLI 未安装时，克隆官方仓库并按其 README 安装：
+The cloud research steps depend on the `loomloom` CLI. If it is not installed, clone the official repo and follow its README:
 
 ```bash
-git clone https://github.com/Cogfoundry-ai/loomloom.git
-# 国内网络可替换为：https://gitee.com/cogfoundry/loomloom.git
+git clone https://github.com/Cogfoundry-labs/loomloom.git
+# If GitHub is not reachable in your network, use the Gitee mirror:
+# git clone https://gitee.com/cogfoundry/loomloom.git
 ```
 
-配置你自己的胜算云凭据（不要提交到 Git）：
+Configure your own ShengSuanyun credentials (do NOT commit them):
 
 ```bash
 export LOOMLOOM_SERVER='https://loomloom.shengsuanyun.com/loom/v1'
-export LOOMLOOM_TOKEN='替换为你自己的胜算云密钥'
+export LOOMLOOM_TOKEN='<replace with your own ShengSuanyun key>'
 loomloom doctor
 ```
 
-`doctor` 通过后，阅读已安装 Skill 中的 `SKILL.md`，再输入股票代码或标准化财务指标表开始研究。
+After `doctor` passes, read the installed Skill's `SKILL.md` and start a research run by providing tickers or a standardized financial metrics table.
 
-## 运行原则
+## Operating principles
 
-1. 先在本地执行预检与数据包构建。
-2. 每次云端运行前必须取得服务端报价，并由用户当次明确确认。
-3. 云端结果必须经本地证据审计、否决项与复跑条件检查后才进入排序。
-4. 输入、价格、数据期间或报价变动后，必须重新预检、报价和确认。
+1. Local Agent always runs preflight and packet construction first.
+2. Before every cloud run the Agent fetches a server quote and obtains explicit confirmation from the user for that run.
+3. Cloud results only enter the ranking after local evidence audit, hard-veto checks, and falsification-condition review.
+4. Any change in input, price, data period, or quote forces a re-preflight, a re-quote, and a new confirmation.
 
-## 仓库结构
+## Repository layout
 
 ```text
-index.html                         静态介绍页
-loomloom-us-value-screening-poster-v1.png  页面海报
-skill/                             v2 Skill 可审查源码
-docs/brand-spec.md                 页面视觉与素材说明
+index.html                                              Static product page
+loomloom-us-value-screening-poster-v1.png               Hero poster
+skill/                                                  Reviewable v2 Skill source
+docs/brand-spec.md                                      Page visual and asset spec
 ```
 
-## 本地验证
+## Local validation
 
 ```bash
 node --test skill/loomloom-019fad3b-8831-7986-bdd0-db4620e261b8/scripts/*.test.mjs
 ```
 
-## 许可
+## License
 
-本仓库采用 [MIT License](LICENSE)。使用时仍应遵守 LoomLoom 服务条款与相关数据来源的使用限制。
+This repository is released under the [MIT License](LICENSE). Use remains subject to the LoomLoom Terms of Service and any third-party data-source restrictions.
