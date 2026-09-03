@@ -1,60 +1,65 @@
-# 决策与本地审计规则
+# Decision and Local Audit Rules
 
-## 评分顺序
+## Buffett's Four Filters — Mapping to Local Dimensions
 
-先检查否决项和证据质量，再使用加权分数。分数只用于研究优先级，不是收益率、买入概率或投资建议。
+This Skill implements Warren Buffett's four filters for "wonderful companies at fair prices" (per his shareholder letters), with two modern quantitative supplements. Every row is scored on these six dimensions; hard-veto rules enforce the spirit of the filters.
 
-| 维度 | 权重 |
-|---|---:|
-| 可理解性与能力圈 | 10% |
-| 商业模式 | 20% |
-| 护城河 | 20% |
-| 管理层、文化与资本配置 | 15% |
-| 财务质量 | 20% |
-| 估值与机会成本 | 15% |
+| Buffett filter | Local dimension | Weight | What it measures |
+|---|---|---:|---|
+| Circle of Competence | `understandability` | 10% | Can a normal investor explain how the company makes money? |
+| Circle of Competence (deep) | `business_model` | 20% | Is the business model durable and intelligible? |
+| Durable Competitive Advantage | `moat` | 20% | Is there structural pricing power, switching cost, or scale moat? |
+| Able & Trustworthy Management | `management_capital_allocation` | 15% | Honest, competent operators with shareholder-friendly capital allocation? |
+| *(modern supplement)* Financial Quality | `financial_quality` | 20% | ROIC, free cash flow, balance sheet, accounting red flags? |
+| Attractive Price (Margin of Safety) | `valuation_opportunity_cost` | 15% | Margin of safety vs. owner earnings, with stated opportunity cost? |
 
-## 证据纪律
+The local row has a single `circle_of_competence` enum (`pass` / `uncertain` / `fail`) — `fail` is a hard veto.
 
-- 云端证据记录必须含 `claim`、完整 `source_ref`、原子 `source_value`、`period` 和 `unit`。
-- `source_ref` 必须以 `identityPacket`、`financialPacket` 或 `qualitativePacket` 开头，并能在该行输入中解析。
-- `source_value` 必须与输入原值完全一致；数组、对象和重新计算的汇总值不作为原子证据。
-- Markdown 代码围栏可以在本地安全移除，但必须标记为 `normalized`。
-- 无来源数字、无法解析的 JSON、股票代码错配、缺失维度或失败行一律 `rejected`。
-- 不允许云端自行补充目标价、未来股价、预测增长率、预测利润率、贴现率、终值倍数、概率或行业倍数。
+## Scoring Order
 
-## 强制否决
+Run veto and evidence-quality checks first, then apply weighted scoring. The score is for research priority only; it is NOT a return forecast, buy probability, or investment recommendation.
 
-以下任一项使股票不能进入 `deep_research`：
+## Evidence Discipline
 
-1. 能力圈为 `fail`。
-2. 四个维度任一缺少可验证证据。
-3. 生存风险与弱资产负债表同时出现。
-4. 重大治理红旗与低管理层/资本配置分同时出现。
-5. 会计红旗与低财务质量分同时出现。
-6. 安全边际分低于 30。
-7. 估值状态不是 `eligible_for_manual_deep_research`。
-8. 检测到输入未授权的预测数字或目标价。
-9. 被拒绝证据多于已验证证据，或被拒绝证据达到 6 条。
+- Each cloud evidence record must contain `claim`, a complete `source_ref`, an atomic `source_value`, `period`, and `unit`.
+- `source_ref` must start with `identityPacket`, `financialPacket`, or `qualitativePacket` and must resolve inside the row's input.
+- `source_value` must match the input's original value exactly. Arrays, objects, and recomputed summaries are NOT atomic evidence.
+- Markdown code fences around JSON may be removed locally, but the row must be tagged `normalized`.
+- Rows with unsourced numbers, unparseable JSON, ticker mismatches, missing dimensions, or failures are `rejected`.
+- The cloud is not allowed to fabricate target prices, future share prices, forecast growth, forecast margins, discount rates, terminal multiples, probabilities, or industry multiples.
 
-## 估值可证伪要求
+## Hard Veto Rules
 
-估值审查至少给出：
+Any of the following prevents a row from entering `deep_research`:
 
-- 两条 `validity_basis`，其中一条绑定价格或价格时间，另一条绑定财报期间、经营更新期末或数据截止日。
-- 两条至四条 `falsification_conditions`。
-- 每个条件含完整证据路径、原值、期间、单位，以及 `rerun_required` 或 `conclusion_invalidated` 动作。
+1. `circle_of_competence` is `fail`.
+2. Any of the four research dimensions lacks verifiable evidence.
+3. Survival risk co-occurs with a weak balance sheet.
+4. Major governance red flags co-occur with a low management / capital allocation score.
+5. Accounting red flags co-occur with a low financial quality score.
+6. Margin of safety score is below 30.
+7. Valuation judgment state is not `eligible_for_manual_deep_research`.
+8. Unauthorized forecast numbers or target prices are detected in the cloud output.
+9. Rejected evidence outweighs verified evidence, or rejected evidence hits 6.
 
-缺少这些字段时整行拒绝，不允许用叙述性文字替代。
+## Valuation Falsifiability Requirements
 
-## 排名
+The valuation review must supply:
 
-仅对 `decision_eligible=true` 的结果排名，依次比较：
+- Two `validity_basis` entries. One binds to price or price timestamp; the other binds to fiscal period, latest operating update end, or data-as-of date.
+- Two to four `falsification_conditions`.
+- Each condition includes a complete evidence path, original value, period, unit, and an `action` of `rerun_required` or `conclusion_invalidated`.
 
-1. 否决项数量。
-2. 置信度。
-3. 综合分。
-4. 商业模式、护城河、财务质量、估值分。
-5. 股票代码，保证结果稳定。
+Missing any of these fields rejects the entire row. Narrative prose does NOT substitute for them.
 
-报告必须展示价格和时间、财报期间、验证证据、反面证据、未知项、否决项和可证伪条件。
+## Ranking
 
+Rank only rows with `decision_eligible=true`, comparing in order:
+
+1. Veto count (fewer wins).
+2. Confidence (`high` > `medium` > `low`).
+3. Overall score.
+4. Per-dimension scores: business model, moat, financial quality, valuation.
+5. Ticker (alphabetical) for deterministic stability.
+
+The report must show price and timestamp, fiscal period, verified evidence, contrary evidence, unknowns, veto items, and falsification conditions.

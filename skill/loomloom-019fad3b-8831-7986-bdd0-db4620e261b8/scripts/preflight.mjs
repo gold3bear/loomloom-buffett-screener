@@ -16,9 +16,9 @@ function argsOf(argv) {
     else if (value === "--as-of") args.asOf = argv[++i];
     else if (value === "--pretty") args.pretty = true;
     else if (["--help", "-h"].includes(value)) args.help = true;
-    else throw new Error(`未知参数：${value}`);
+    else throw new Error(`Unknown argument: ${value}`);
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(args.asOf) || Number.isNaN(Date.parse(`${args.asOf}T00:00:00Z`))) throw new Error("--as-of 必须为有效 YYYY-MM-DD 日期");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(args.asOf) || Number.isNaN(Date.parse(`${args.asOf}T00:00:00Z`))) throw new Error("--as-of must be a valid YYYY-MM-DD date");
   return args;
 }
 
@@ -32,7 +32,7 @@ function objectPacket(value, label, issues) {
     const parsed = JSON.parse(String(value));
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
   } catch {}
-  issues.push(issue("PACKET_NOT_JSON_OBJECT", `${label} 必须是 JSON 对象`, "error", label));
+  issues.push(issue("PACKET_NOT_JSON_OBJECT", `${label} must be a JSON object`, "error", label));
   return {};
 }
 
@@ -50,41 +50,41 @@ function ageDays(value, asOf) {
 }
 
 function checkDate(value, path, maxDays, asOf, issues, severity = "error") {
-  if (!validDate(value)) issues.push(issue("INVALID_DATE", `${path} 必须是有效日期`, "error", path));
-  else if (ageDays(value, asOf) > maxDays) issues.push(issue("STALE_DATA", `${path} 距检查日超过 ${maxDays} 天`, severity, path));
-  else if (ageDays(value, asOf) < -1) issues.push(issue("FUTURE_DATA", `${path} 晚于检查日`, "error", path));
+  if (!validDate(value)) issues.push(issue("INVALID_DATE", `${path} must be a valid date`, "error", path));
+  else if (ageDays(value, asOf) > maxDays) issues.push(issue("STALE_DATA", `${path} is older than ${maxDays} days from the check date`, severity, path));
+  else if (ageDays(value, asOf) < -1) issues.push(issue("FUTURE_DATA", `${path} is later than the check date`, "error", path));
 }
 
 function checkHistory(history, issues) {
   if (!history || typeof history !== "object" || Array.isArray(history)) {
-    issues.push(issue("MISSING_ANNUAL_HISTORY", "financialPacket.annualHistory 必须是对象", "error", "financialPacket.annualHistory"));
+    issues.push(issue("MISSING_ANNUAL_HISTORY", "financialPacket.annualHistory must be an object", "error", "financialPacket.annualHistory"));
     return;
   }
   const periods = history.fiscalYearEnd;
   if (!Array.isArray(periods) || periods.length < 3 || !periods.every(validDate)) {
-    issues.push(issue("INVALID_FISCAL_PERIODS", "annualHistory.fiscalYearEnd 至少包含 3 个有效期间", "error", "financialPacket.annualHistory.fiscalYearEnd"));
+    issues.push(issue("INVALID_FISCAL_PERIODS", "annualHistory.fiscalYearEnd must contain at least 3 valid periods", "error", "financialPacket.annualHistory.fiscalYearEnd"));
     return;
   }
   for (const [key, values] of Object.entries(history)) {
     if (key !== "fiscalYearEnd" && Array.isArray(values) && values.length !== periods.length) {
-      issues.push(issue("HISTORY_LENGTH_MISMATCH", `annualHistory.${key} 长度必须与 fiscalYearEnd 一致`, "error", `financialPacket.annualHistory.${key}`));
+      issues.push(issue("HISTORY_LENGTH_MISMATCH", `annualHistory.${key} length must match fiscalYearEnd`, "error", `financialPacket.annualHistory.${key}`));
     }
   }
 }
 
 function checkQualitative(packet, asOf, issues) {
   for (const key of QUAL_GROUPS) {
-    if (!Array.isArray(packet[key])) issues.push(issue("MISSING_QUALITATIVE_GROUP", `qualitativePacket.${key} 必须是数组`, "error", `qualitativePacket.${key}`));
+    if (!Array.isArray(packet[key])) issues.push(issue("MISSING_QUALITATIVE_GROUP", `qualitativePacket.${key} must be an array`, "error", `qualitativePacket.${key}`));
   }
   for (const key of FACT_GROUPS) {
     for (const [index, item] of (packet[key] ?? []).entries()) {
       const path = `qualitativePacket.${key}[${index}]`;
       if (!item || typeof item !== "object" || Array.isArray(item)) {
-        issues.push(issue("INVALID_QUALITATIVE_FACT", `${path} 必须是事实对象`, "error", path));
+        issues.push(issue("INVALID_QUALITATIVE_FACT", `${path} must be a fact object`, "error", path));
         continue;
       }
-      if (!String(item.fact ?? "").trim()) issues.push(issue("FACT_MISSING", `${path}.fact 不能为空`, "error", `${path}.fact`));
-      if (!String(item.source ?? "").trim()) issues.push(issue("FACT_SOURCE_MISSING", `${path}.source 不能为空`, "error", `${path}.source`));
+      if (!String(item.fact ?? "").trim()) issues.push(issue("FACT_MISSING", `${path}.fact must not be empty`, "error", `${path}.fact`));
+      if (!String(item.source ?? "").trim()) issues.push(issue("FACT_SOURCE_MISSING", `${path}.source must not be empty`, "error", `${path}.source`));
       checkDate(item.date, `${path}.date`, 550, asOf, issues, "warning");
     }
   }
@@ -96,29 +96,29 @@ function checkRow(raw, rowIndex, asOf) {
   const financial = objectPacket(raw?.financialPacket, "financialPacket", issues);
   const qualitative = objectPacket(raw?.qualitativePacket, "qualitativePacket", issues);
   const ticker = String(raw?.ticker ?? identity.ticker ?? "").trim().toUpperCase();
-  if (!TICKER.test(ticker)) issues.push(issue("INVALID_TICKER", "ticker 格式无效", "error", "ticker"));
-  if (raw?.ticker && String(identity.ticker ?? "").trim().toUpperCase() !== ticker) issues.push(issue("TICKER_MISMATCH", "行 ticker 与 identityPacket.ticker 不一致", "error", "ticker"));
-  if (!String(identity.companyName ?? "").trim()) issues.push(issue("COMPANY_NAME_MISSING", "identityPacket.companyName 不能为空", "error", "identityPacket.companyName"));
-  if (!String(identity.fiscalPeriod ?? "").trim()) issues.push(issue("FISCAL_PERIOD_MISSING", "identityPacket.fiscalPeriod 不能为空", "error", "identityPacket.fiscalPeriod"));
+  if (!TICKER.test(ticker)) issues.push(issue("INVALID_TICKER", "ticker format is invalid", "error", "ticker"));
+  if (raw?.ticker && String(identity.ticker ?? "").trim().toUpperCase() !== ticker) issues.push(issue("TICKER_MISMATCH", "row ticker does not match identityPacket.ticker", "error", "ticker"));
+  if (!String(identity.companyName ?? "").trim()) issues.push(issue("COMPANY_NAME_MISSING", "identityPacket.companyName must not be empty", "error", "identityPacket.companyName"));
+  if (!String(identity.fiscalPeriod ?? "").trim()) issues.push(issue("FISCAL_PERIOD_MISSING", "identityPacket.fiscalPeriod must not be empty", "error", "identityPacket.fiscalPeriod"));
   checkDate(identity.dataAsOf, "identityPacket.dataAsOf", 45, asOf, issues);
   if (!Array.isArray(identity.sources) || !identity.sources.some((source) => /^https:\/\//.test(String(source)))) {
-    issues.push(issue("SOURCES_MISSING", "identityPacket.sources 至少包含一个 HTTPS 来源", "error", "identityPacket.sources"));
+    issues.push(issue("SOURCES_MISSING", "identityPacket.sources must contain at least one HTTPS source", "error", "identityPacket.sources"));
   }
 
   const snapshot = financial.marketSnapshot;
   if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
-    issues.push(issue("MISSING_MARKET_SNAPSHOT", "financialPacket.marketSnapshot 必须是对象", "error", "financialPacket.marketSnapshot"));
+    issues.push(issue("MISSING_MARKET_SNAPSHOT", "financialPacket.marketSnapshot must be an object", "error", "financialPacket.marketSnapshot"));
   } else {
     checkDate(snapshot.asOf, "financialPacket.marketSnapshot.asOf", 7, asOf, issues);
-    if (!(Number(snapshot.price) > 0)) issues.push(issue("INVALID_PRICE", "marketSnapshot.price 必须为正数", "error", "financialPacket.marketSnapshot.price"));
+    if (!(Number(snapshot.price) > 0)) issues.push(issue("INVALID_PRICE", "marketSnapshot.price must be a positive number", "error", "financialPacket.marketSnapshot.price"));
     if (!String(snapshot.currency ?? "").trim()) {
       const currency = explicitCurrency(financial);
-      if (currency) issues.push(issue("CURRENCY_NORMALIZED_FROM_UNITS", `价格币种可从 financialPacket.units 明确迁移为 ${currency}`, "warning", "financialPacket.marketSnapshot.currency"));
-      else issues.push(issue("CURRENCY_MISSING", "marketSnapshot.currency 不能为空", "error", "financialPacket.marketSnapshot.currency"));
+      if (currency) issues.push(issue("CURRENCY_NORMALIZED_FROM_UNITS", `price currency can be normalized from financialPacket.units to ${currency}`, "warning", "financialPacket.marketSnapshot.currency"));
+      else issues.push(issue("CURRENCY_MISSING", "marketSnapshot.currency must not be empty", "error", "financialPacket.marketSnapshot.currency"));
     }
-    if (snapshot.pe !== null && snapshot.pe !== undefined && !Number.isFinite(Number(snapshot.pe))) issues.push(issue("INVALID_PE", "marketSnapshot.pe 必须是数字或 null", "error", "financialPacket.marketSnapshot.pe"));
-    if ((snapshot.pe === null || snapshot.pe === undefined) && !(financial.unknowns ?? []).some((item) => /pe|市盈率|亏损/i.test(String(item)))) {
-      issues.push(issue("PE_UNKNOWN_UNEXPLAINED", "PE 缺失时必须在 financialPacket.unknowns 说明", "warning", "financialPacket.unknowns"));
+    if (snapshot.pe !== null && snapshot.pe !== undefined && !Number.isFinite(Number(snapshot.pe))) issues.push(issue("INVALID_PE", "marketSnapshot.pe must be a number or null", "error", "financialPacket.marketSnapshot.pe"));
+    if ((snapshot.pe === null || snapshot.pe === undefined) && !(financial.unknowns ?? []).some((item) => /\b(pe|p\/e|earnings|loss)\b/i.test(String(item)))) {
+      issues.push(issue("PE_UNKNOWN_UNEXPLAINED", "PE missing must be explained in financialPacket.unknowns", "warning", "financialPacket.unknowns"));
     }
   }
   checkHistory(financial.annualHistory, issues);
@@ -151,11 +151,11 @@ async function readText(path) {
 async function main() {
   const args = argsOf(process.argv.slice(2));
   if (args.help) return process.stdout.write("node scripts/preflight.mjs --input <packets.json|-> [--as-of YYYY-MM-DD] [--output report.json] [--pretty]\n");
-  if (!args.input) throw new Error("必须提供 --input");
+  if (!args.input) throw new Error("--input is required");
   const report = preflight(JSON.parse(await readText(args.input)), { asOf: args.asOf });
   const output = `${JSON.stringify(report, null, args.pretty ? 2 : 0)}\n`;
   if (args.output) await writeFile(args.output, output, "utf8"); else process.stdout.write(output);
   process.exitCode = report.valid ? 0 : 1;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main().catch((error) => { process.stderr.write(`输入预检错误：${error.message}\n`); process.exitCode = 2; });
+if (import.meta.url === `file://${process.argv[1]}`) main().catch((error) => { process.stderr.write(`preflight error: ${error.message}\n`); process.exitCode = 2; });

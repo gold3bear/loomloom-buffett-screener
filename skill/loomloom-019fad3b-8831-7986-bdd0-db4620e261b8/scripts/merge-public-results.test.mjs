@@ -13,21 +13,21 @@ function ev(claim, source_ref, source_value) { return [{ claim, source_ref, sour
 
 function reviews() {
   return [
-    { business_model_score: 80, understandability_score: 80, circle_of_competence: "pass", evidence_records: ev("收入", "financialPacket.metrics.revenue", 100), positive_points: [], contrary_points: [], unknowns: [], summary: "商业模式清晰" },
-    { moat_score: 80, management_culture_score: 80, capital_allocation_score: 80, evidence_records: ev("现金流", "financialPacket.metrics.fcf", 20), positive_points: [], contrary_points: [], governance_red_flags: [], unknowns: [], summary: "护城河稳定" },
-    { financial_quality_score: 80, cash_flow_quality_score: 80, balance_sheet_score: 80, evidence_records: ev("债务", "financialPacket.metrics.debt", 10), positive_points: [], contrary_points: [], accounting_red_flags: [], survival_risks: [], unknowns: [], summary: "财务质量良好" },
+    { business_model_score: 80, understandability_score: 80, circle_of_competence: "pass", evidence_records: ev("revenue", "financialPacket.metrics.revenue", 100), positive_points: [], contrary_points: [], unknowns: [], summary: "Business model is clear" },
+    { moat_score: 80, management_culture_score: 80, capital_allocation_score: 80, evidence_records: ev("free cash flow", "financialPacket.metrics.fcf", 20), positive_points: [], contrary_points: [], governance_red_flags: [], unknowns: [], summary: "Moat is stable" },
+    { financial_quality_score: 80, cash_flow_quality_score: 80, balance_sheet_score: 80, evidence_records: ev("debt", "financialPacket.metrics.debt", 10), positive_points: [], contrary_points: [], accounting_red_flags: [], survival_risks: [], unknowns: [], summary: "Financial quality is healthy" },
     {
       valuation_score: 80, margin_of_safety_score: 80, judgment_state: "eligible_for_manual_deep_research",
-      evidence_records: ev("市盈率", "financialPacket.metrics.pe", 25),
+      evidence_records: ev("P/E ratio", "financialPacket.metrics.pe", 25),
       validity_basis: [
-        { claim: "价格", source_ref: "financialPacket.marketSnapshot.price", source_value: 200, period: "2026-07-29", unit: "USD" },
-        { claim: "财报期间", source_ref: "identityPacket.fiscalPeriod", source_value: "FY2025", period: "FY2025", unit: "text" },
+        { claim: "price", source_ref: "financialPacket.marketSnapshot.price", source_value: 200, period: "2026-07-29", unit: "USD" },
+        { claim: "fiscal period", source_ref: "identityPacket.fiscalPeriod", source_value: "FY2025", period: "FY2025", unit: "text" },
       ],
       falsification_conditions: [
-        { condition: "价格变化", source_ref: "financialPacket.marketSnapshot.price", source_value: 200, period: "2026-07-29", unit: "USD", action: "rerun_required" },
-        { condition: "财报更新", source_ref: "identityPacket.fiscalPeriod", source_value: "FY2025", period: "FY2025", unit: "text", action: "conclusion_invalidated" },
+        { condition: "price changes", source_ref: "financialPacket.marketSnapshot.price", source_value: 200, period: "2026-07-29", unit: "USD", action: "rerun_required" },
+        { condition: "fiscal update", source_ref: "identityPacket.fiscalPeriod", source_value: "FY2025", period: "FY2025", unit: "text", action: "conclusion_invalidated" },
       ],
-      positive_points: [], contrary_points: [], valuation_red_flags: [], forbidden_numeric_claims: [], unknowns: [], summary: "估值可继续研究",
+      positive_points: [], contrary_points: [], valuation_red_flags: [], forbidden_numeric_claims: [], unknowns: [], summary: "Valuation is open to further research",
     },
   ];
 }
@@ -82,7 +82,7 @@ test("rejects a missing research dimension", () => {
 });
 
 test("detects unauthorized numeric target price", () => {
-  const report = mergeResults(payload({ mutate: (outputs) => { outputs[3].summary = "目标价为 250 美元"; } }));
+  const report = mergeResults(payload({ mutate: (outputs) => { outputs[3].summary = "our target price is 250 USD"; } }));
   assert.equal(report.rows[0].decision, "pass");
   assert.ok(report.rows[0].veto_items.includes("forbidden_numeric_claims"));
 });
@@ -90,8 +90,8 @@ test("detects unauthorized numeric target price", () => {
 test("renders price, evidence and falsification conditions", () => {
   const markdown = renderReport(mergeResults(payload()));
   assert.match(markdown, /200 USD/);
-  assert.match(markdown, /通过验证的证据/);
-  assert.match(markdown, /价格变化/);
+  assert.match(markdown, /Verified evidence/);
+  assert.match(markdown, /price changes/);
 });
 
 test("parses steps-format inputJson from cloud", () => {
@@ -114,8 +114,7 @@ test("parses steps-format inputJson from cloud", () => {
 
 test("accepts source_value containing derivation formula with original value", () => {
   const p = payload({ mutate: (outputs) => {
-    // Cloud LLM writes a formula that includes the original value "80.0%"
-    // Input value at qualitativePacket is {}, so test with a financial metric
+    // Cloud LLM writes a formula that includes the original value "100"
     outputs[0].evidence_records[0].source_value = "100 / total = 100";
   }});
   const report = mergeResults(p);
@@ -130,7 +129,7 @@ test("accepts string source_value that contains input value as substring", () =>
   }});
   const report = mergeResults(p);
   assert.equal(report.rows[0].valid, true);
-  assert.ok(report.rows[0].verified_evidence.some((e) => e.claim === "收入"));
+  assert.ok(report.rows[0].verified_evidence.some((e) => e.claim === "revenue"));
 });
 
 test("rejects source_value that does not contain input value at all", () => {
@@ -150,7 +149,7 @@ test("accepts source_value that is the result of a formula in the input", () => 
     qualitativePacket: {},
   };
   const outputs = reviews();
-  outputs[0].evidence_records = [{ claim: "负债率", source_ref: "financialPacket.metrics.ratio", source_value: "80.0%", period: "FY2025", unit: "text" }];
+  outputs[0].evidence_records = [{ claim: "debt ratio", source_ref: "financialPacket.metrics.ratio", source_value: "80.0%", period: "FY2025", unit: "text" }];
   const p = {
     rows: [{
       rowIndex: 0, status: "completed",
@@ -160,14 +159,14 @@ test("accepts source_value that is the result of a formula in the input", () => 
   };
   const report = mergeResults(p);
   assert.equal(report.rows[0].valid, true);
-  assert.ok(report.rows[0].verified_evidence.some((e) => e.claim === "负债率"));
+  assert.ok(report.rows[0].verified_evidence.some((e) => e.claim === "debt ratio"));
 });
 
-// H-1 回归:balance_sheet_score 字段存在但值为 null 时,survival_risks 触发的 veto 不应被静默吞掉。
-// 修复前 `null < 30` 为 true 不会有问题,但 `undefined` 或非数字字符串会让 `score < 30` 静默失效。
+// H-1 regression: when balance_sheet_score is present but null, the survival_risks veto must fire
+// instead of being silently swallowed.
 test("vetoes survival_risk_with_weak_balance_sheet when balance_sheet_score is null", () => {
   const p = payload({ mutate: (outputs) => {
-    outputs[2].survival_risks = ["经营现金流持续为负"];
+    outputs[2].survival_risks = ["operating cash flow has been negative for several quarters"];
     outputs[2].balance_sheet_score = null;
   }});
   const report = mergeResults(p);
@@ -177,7 +176,7 @@ test("vetoes survival_risk_with_weak_balance_sheet when balance_sheet_score is n
   assert.equal(report.rows[0].decision_eligible, false);
 });
 
-// H-1 边界:survival_risks 为空时,即使 balance_sheet_score 是 null 也不触发 veto。
+// H-1 boundary: when survival_risks is empty, no veto even if balance_sheet_score is null.
 test("does not veto when survival_risks is empty even if balance_sheet_score is null", () => {
   const p = payload({ mutate: (outputs) => {
     outputs[2].survival_risks = [];
@@ -188,20 +187,20 @@ test("does not veto when survival_risks is empty even if balance_sheet_score is 
     `unexpected veto: ${JSON.stringify(report.rows[0].veto_items)}`);
 });
 
-// H-1 边界:balance_sheet_score 是显式弱分(20)时,正常触发 veto。
+// H-1 boundary: balance_sheet_score is an explicit weak score (20) and triggers the veto.
 test("vetoes when balance_sheet_score is a low finite number", () => {
   const p = payload({ mutate: (outputs) => {
-    outputs[2].survival_risks = ["现金流承压"];
+    outputs[2].survival_risks = ["cash flow under pressure"];
     outputs[2].balance_sheet_score = 20;
   }});
   const report = mergeResults(p);
   assert.ok(report.rows[0].veto_items.includes("survival_risk_with_weak_balance_sheet"));
 });
 
-// H-1 边界:balance_sheet_score 是非数字字符串("unknown")时,也被识别为弱,触发 veto。
+// H-1 boundary: balance_sheet_score is a non-numeric string ("unknown") and is treated as weak.
 test("vetoes when balance_sheet_score is a non-numeric string", () => {
   const p = payload({ mutate: (outputs) => {
-    outputs[2].survival_risks = ["现金流承压"];
+    outputs[2].survival_risks = ["cash flow under pressure"];
     outputs[2].balance_sheet_score = "unknown";
   }});
   const report = mergeResults(p);
@@ -209,14 +208,14 @@ test("vetoes when balance_sheet_score is a non-numeric string", () => {
     `expected veto, got ${JSON.stringify(report.rows[0].veto_items)}`);
 });
 
-// H-2:云端把 packet 作为结构化 step.input 返回时,优先于 prompt 字符串抽取。
+// H-2: when the cloud returns a packet as structured step.input, that wins over prompt-string extraction.
 test("prefers structured step.input over prompt string extraction", () => {
   const structuredInput = {
     identityPacket: { ticker: "AAPL", companyName: "Apple Inc.", fiscalPeriod: "FY2025", dataAsOf: "2026-07-29" },
     financialPacket: { marketSnapshot: { price: 200, currency: "USD", asOf: "2026-07-29" }, metrics: { revenue: 100, fcf: 20, debt: 10, pe: 25 } },
     qualitativePacket: {},
   };
-  // prompt 里塞一个"误导性"的 IDENTITY 标签,验证 step.input 胜出
+  // Decoy prompt with a misleading IDENTITY label; structured step.input must still win.
   const decoyPrompt = "IDENTITY: {\"ticker\":\"FAKE\"}\nFINANCIAL: {}\nQUALITATIVE: {}";
   const p = payload();
   p.rows[0].inputJson = JSON.stringify({
@@ -230,7 +229,7 @@ test("prefers structured step.input over prompt string extraction", () => {
   assert.equal(report.rows[0].company_name, "Apple Inc.");
 });
 
-// H-2:云端用 ```json 围栏包裹 prompt 中的 packet 时,本地能正确解析。
+// H-2: when the cloud wraps prompt-embedded packets in ```json fences, the local parser still extracts them.
 test("extracts packets wrapped in ```json fences from prompt string", () => {
   const p = payload();
   p.rows[0].inputJson = JSON.stringify({
@@ -259,10 +258,9 @@ test("extracts packets wrapped in ```json fences from prompt string", () => {
   assert.equal(report.rows[0].price, 200);
 });
 
-// H-2:outer 自身直接含三个 packet 对象(非字符串)时,parseInput 直接采用,不再走 steps 解析。
+// H-2: when outer directly contains the three packet objects (not strings), parseInput takes that path.
 test("accepts outer object with packet objects directly", () => {
   const p = payload();
-  // 这里的 packet 必须是对象(不是字符串),才能命中"优先 1"路径
   p.rows[0].inputJson = JSON.stringify({
     identityPacket: input.identityPacket,
     financialPacket: input.financialPacket,
@@ -273,31 +271,30 @@ test("accepts outer object with packet objects directly", () => {
   assert.equal(report.rows[0].ticker, "AAPL");
 });
 
-// M-7:getPath 修复后,source_ref 指向原型链属性时应被识别为"无法解析",
-// 而不是被 same() 兜底为"值不一致"。
+// M-7: getPath should treat prototype-chain keys as "cannot be resolved", not as a value mismatch.
 test("rejects source_ref that targets a prototype-chain property", () => {
   const p = payload({ mutate: (outputs) => {
     outputs[0].evidence_records[0].source_ref = "identityPacket.toString";
   }});
   const report = mergeResults(p);
-  assert.ok(report.rows[0].rejected_evidence.some((e) => /无法解析/.test(e.reason)),
-    `expected "无法解析" reason, got ${JSON.stringify(report.rows[0].rejected_evidence)}`);
+  assert.ok(report.rows[0].rejected_evidence.some((e) => /cannot be resolved/i.test(e.reason)),
+    `expected "cannot be resolved" reason, got ${JSON.stringify(report.rows[0].rejected_evidence)}`);
 });
 
-// M-6:云端用 dimension 字段显式声明时,优先于字段名启发式匹配。
+// M-6: an explicit dimension field wins over the field-name heuristic.
 test("respects explicit dimension field over field-name heuristic", () => {
   const p = payload({ mutate: (outputs) => {
-    // 假装 cloud 把 valuation review 误串了 moat 字段,但通过 dimension 字段正确归类
+    // Cloud accidentally includes a moat field in the valuation review; the explicit
+    // `dimension` field must still route it to valuation.
     outputs[3].moat_score = 90;
     outputs[3].dimension = "valuation";
   }});
   const report = mergeResults(p);
   assert.equal(report.rows[0].valid, true);
-  // valuation 维度应有 1 条 evidence(原 ev 中 valuation 的 evidence_records)
   assert.ok(report.rows[0].review_summaries.valuation);
 });
 
-// M-6:dimension 字段是非法值时,回退到字段名匹配(不抛错)。
+// M-6: an invalid dimension value falls back to field-name matching without erroring.
 test("falls back to field-name heuristic when dimension field is invalid", () => {
   const p = payload({ mutate: (outputs) => {
     outputs[0].dimension = "wrong_dimension";
@@ -307,20 +304,20 @@ test("falls back to field-name heuristic when dimension field is invalid", () =>
   assert.equal(report.rows[0].ticker, "AAPL");
 });
 
-// M-1:有 veto 时 auditStatus 应该是 "vetoed",而不是 "pass"。
+// M-1: any veto should make auditStatus 'vetoed', not 'pass'.
 test("audit_status reflects vetoes as 'vetoed'", () => {
   const p = payload({ mutate: (outputs) => {
-    outputs[2].survival_risks = ["现金流承压"];
-    outputs[2].balance_sheet_score = null; // 触发 survival_risk_with_weak_balance_sheet veto
+    outputs[2].survival_risks = ["cash flow under pressure"];
+    outputs[2].balance_sheet_score = null; // triggers survival_risk_with_weak_balance_sheet
   }});
   const report = mergeResults(p);
   assert.ok(report.rows[0].veto_items.length > 0);
   assert.equal(report.rows[0].audit_status, "vetoed");
 });
 
-// M-1:有 excessive_rejected_evidence veto 时 auditStatus 应该是 "fail"。
+// M-1: excessive_rejected_evidence veto forces auditStatus to 'fail'.
 test("audit_status is 'fail' when excessive_rejected_evidence is present", () => {
-  // 让 6 条 evidence 都被拒,触发 excessive_rejected_evidence
+  // Push 6 rejected evidence items to trigger excessive_rejected_evidence.
   const p = payload({ mutate: (outputs) => {
     outputs[0].evidence_records = [
       { claim: "x1", source_ref: "identityPacket.ticker", source_value: "WRONG", period: "FY2025", unit: "text" },
@@ -336,7 +333,7 @@ test("audit_status is 'fail' when excessive_rejected_evidence is present", () =>
   assert.equal(report.rows[0].audit_status, "fail");
 });
 
-// M-4:evidence_records 数量超过上限时,行被 rejected。
+// M-4: evidence_records above the cap rejects the row.
 test("rejects rows with evidence_records exceeding limit", () => {
   const oversized = Array.from({ length: 51 }, (_, i) => ({
     claim: `c${i}`, source_ref: "financialPacket.metrics.revenue", source_value: 100, period: "FY2025", unit: "USD",
@@ -346,21 +343,21 @@ test("rejects rows with evidence_records exceeding limit", () => {
   }});
   const report = mergeResults(p);
   assert.equal(report.rows[0].valid, false);
-  assert.ok(report.rows[0].errors.some((e) => /超过.*上限/.test(e)),
-    `expected limit error, got ${JSON.stringify(report.rows[0].errors)}`);
+  assert.ok(report.rows[0].errors.some((e) => /exceeds the .* cap/i.test(e)),
+    `expected cap error, got ${JSON.stringify(report.rows[0].errors)}`);
 });
 
-// M-4:source_value 字符串超过 2000 字符时,行被 rejected。
+// M-4: source_value string over 2000 characters rejects the row.
 test("rejects rows with oversized source_value strings", () => {
   const p = payload({ mutate: (outputs) => {
     outputs[0].evidence_records[0].source_value = "x".repeat(2001);
   }});
   const report = mergeResults(p);
   assert.equal(report.rows[0].valid, false);
-  assert.ok(report.rows[0].errors.some((e) => /超过.*上限/.test(e)));
+  assert.ok(report.rows[0].errors.some((e) => /exceeds the .* cap/i.test(e)));
 });
 
-// M-4:边界值 — 50 条 evidence + 2000 字符 source_value 应正常通过。
+// M-4: at the exact limits (50 evidence / 2000 chars) the row is still accepted.
 test("accepts rows at exact limits", () => {
   const atLimit = Array.from({ length: 50 }, (_, i) => ({
     claim: `c${i}`, source_ref: "financialPacket.metrics.revenue", source_value: 100, period: "FY2025", unit: "USD",
@@ -372,7 +369,7 @@ test("accepts rows at exact limits", () => {
   assert.equal(report.rows[0].valid, true);
 });
 
-// M-2:报告里 company_name 含 Markdown 强调字符时,应被转义,不会被渲染为斜体。
+// M-2: a Markdown emphasis character in a report field is escaped, not rendered as italics.
 test("escapes markdown emphasis characters in report fields", () => {
   const evilName = "*Apple Inc.*";
   const p = payload();
@@ -380,24 +377,22 @@ test("escapes markdown emphasis characters in report fields", () => {
   newInput.identityPacket.companyName = evilName;
   p.rows[0].inputJson = JSON.stringify(Object.fromEntries(Object.entries(newInput).map(([k, v]) => [k, JSON.stringify(v)])));
   const markdown = renderReport(mergeResults(p));
-  // 原始的 *Apple Inc.* 应该是经过转义的 \*Apple Inc.\*
+  // The raw *Apple Inc.* must end up as the escaped form \*Apple Inc.\*
   assert.ok(markdown.includes("\\*Apple Inc.\\*"),
     `expected escaped name in markdown, got: ${markdown.slice(0, 200)}`);
-  // 没有"非转义"的 * 紧跟字母(这是行内强调触发条件)
-  const body = markdown.split("生成时间")[1] || "";
-  // 把所有已转义的 \*、\_、\` 占位掉,再检查是否有未转义的 *X 模式
+  // No unescaped * followed by a letter (the inline-emphasis trigger)
+  const body = markdown.split("Generated at")[1] || "";
   const stripped = body.replace(/\\[*_`]/g, "");
   assert.ok(!/\*[A-Za-z]/.test(stripped),
     `found unescaped emphasis pattern in body`);
 });
 
-// M-2:summary 含 HTML 标签时,应被转义为实体,不会被某些 Markdown 渲染器解析为 HTML。
+// M-2: HTML tags in a summary are escaped to entities, not parsed as HTML.
 test("escapes HTML tags in report summaries", () => {
   const p = payload({ mutate: (outputs) => {
-    outputs[0].summary = "商业模式 <script>alert(1)</script>";
+    outputs[0].summary = "Business model <script>alert(1)</script>";
   }});
   const markdown = renderReport(mergeResults(p));
   assert.ok(markdown.includes("&lt;script&gt;"));
   assert.ok(!markdown.includes("<script>alert"));
 });
-

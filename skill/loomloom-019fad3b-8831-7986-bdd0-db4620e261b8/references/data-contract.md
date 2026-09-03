@@ -1,10 +1,10 @@
-# 本地数据契约
+# Local Data Contract
 
-每个输入对象代表一只股票，包含 `identityPacket`、`financialPacket`、`qualitativePacket`。三个字段既可为 JSON 对象，也可为序列化 JSON 字符串；生成 Market 请求时统一序列化为字符串。
+Each input object represents one ticker and contains `identityPacket`, `financialPacket`, `qualitativePacket`. The three fields may be JSON objects or serialized JSON strings; when generating the Market request they are uniformly serialized as strings.
 
-## 身份与来源
+## Identity and Sources
 
-`identityPacket` 至少包含：
+`identityPacket` must contain at least:
 
 ```json
 {
@@ -17,14 +17,14 @@
 }
 ```
 
-- `ticker` 使用大写美股代码。
-- `dataAsOf` 使用 ISO 日期，不得晚于检查日。
-- `sources` 至少包含一个 HTTPS 链接。优先 SEC、公司 IR、交易所或其他一手来源。
-- `fiscalPeriod` 明确当前主要财务口径；不同期间的数据不得伪装成同一期。
+- `ticker` uses the uppercase US equity symbol.
+- `dataAsOf` is an ISO date and must not be later than the check date.
+- `sources` contains at least one HTTPS link. Prefer SEC filings, company IR, exchanges, or other primary sources.
+- `fiscalPeriod` states the current primary reporting basis; data from different periods must not be disguised as the same period.
 
-## 财务与估值
+## Financials and Valuation
 
-`financialPacket.marketSnapshot` 至少包含：
+`financialPacket.marketSnapshot` must contain at least:
 
 ```json
 {
@@ -35,12 +35,12 @@
 }
 ```
 
-- `price` 必须为正数并绑定时间与币种。
-- 市场快照超过 7 天视为硬失败。
-- 亏损公司或指标无意义时，`pe` 可以为 `null`，但必须在 `financialPacket.unknowns` 解释。
-- 不把盘中价格、收盘价和拆股前价格混为一谈。
+- `price` must be a positive number and is bound to a timestamp and currency.
+- A market snapshot older than 7 days is a hard failure.
+- When a loss-making company or a meaningless metric makes `pe` irrelevant, set it to `null` and explain in `financialPacket.unknowns`.
+- Do not mix intraday, closing, and pre-split prices.
 
-`financialPacket.annualHistory` 至少提供三个有效财年：
+`financialPacket.annualHistory` must provide at least three valid fiscal years:
 
 ```json
 {
@@ -51,16 +51,16 @@
 }
 ```
 
-- 所有历史数组长度与 `fiscalYearEnd` 一致。
-- 单位放在字段旁或包级 `units`，不得省略。
-- GAAP、non-GAAP 与本地派生指标分开。
-- 派生值保留公式和输入键；云端只解释，不补算缺失事实。
+- All history arrays must have the same length as `fiscalYearEnd`.
+- Units go next to the field or in a packet-level `units` field; never omitted.
+- Keep GAAP, non-GAAP, and locally derived metrics separate.
+- Derived values keep the formula and input keys; the cloud only interprets, it does not back-fill missing facts.
 
-建议同时提供 ROE/ROIC、经营现金流、资本开支、现金、总债务、租赁义务、稀释股数、回购、股权激励、自由现金流收益率和历史估值背景。
+Also recommended: ROE / ROIC, operating cash flow, capex, cash, total debt, lease obligations, diluted share count, buybacks, stock-based compensation, free-cash-flow yield, and historical valuation context.
 
-## 商业质量与风险
+## Business Quality and Risk
 
-以下字段必须为数组：
+The following fields must all be arrays:
 
 ```text
 businessModel
@@ -72,26 +72,25 @@ contraryEvidence
 unknowns
 ```
 
-前五类的每条事实使用：
+Each fact in the first five groups uses this shape:
 
 ```json
 {
-  "fact": "可核验的原子事实",
+  "fact": "A verifiable atomic fact",
   "source": "https://...",
   "date": "2026-07-29",
   "sourceType": "SEC filing"
 }
 ```
 
-- 一个条目只表达一个事实。
-- 来源和日期不能为空；超过 550 天的定性证据需更新或降级。
-- 管理层宣传不能单独证明护城河、文化或竞争优势。
-- 同时记录支持证据、反面证据和未知项。
+- One entry expresses one fact.
+- Source and date must be present; qualitative evidence older than 550 days must be refreshed or downgraded.
+- Management self-reporting alone does not prove a moat, culture, or competitive advantage.
+- Capture supporting evidence, contrary evidence, and unknowns at the same time.
 
-## 时效和未知项
+## Freshness and Unknowns
 
-- 身份数据原则上不超过 45 天。
-- 市场价格不超过 7 天。
-- 未提供的事实必须留空或写入 `unknowns`，不得使用估计值伪装成事实。
-- 缺少正常化 owner earnings、历史估值区间或明确机会成本时，不得判断“安全边际充足”。
-
+- Identity data is in principle no more than 45 days old.
+- Market price no more than 7 days old.
+- Missing facts must be left empty or written to `unknowns`; never dress up estimates as facts.
+- Without normalized owner earnings, a historical valuation range, or a stated opportunity cost, the row must NOT be marked "margin of safety sufficient".

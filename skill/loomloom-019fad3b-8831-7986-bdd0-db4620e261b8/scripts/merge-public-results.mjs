@@ -6,11 +6,11 @@ import process from "node:process";
 const DIMENSIONS = ["business", "moat", "financial", "valuation"];
 const WEIGHTS = { understandability: 0.10, business_model: 0.20, moat: 0.20, management_capital_allocation: 0.15, financial_quality: 0.20, valuation_opportunity_cost: 0.15 };
 const CONFIDENCE = { high: 3, medium: 2, low: 1 };
-// 修复 M-4:每维度 evidence_records 数量上限 + 单条 source_value 字符串长度上限,防止异常输出撑爆报告
+// M-4: per-dimension evidence_records count cap + per-source_value string length cap to keep reports bounded.
 const MAX_EVIDENCE_RECORDS = 50;
 const MAX_SOURCE_VALUE_CHARS = 2000;
 const MAX_UNKNOWN_ITEMS = 200;
-// 修复 M-5:评分与置信度阈值集中,方便后续与 decision-policy.md 同步
+// M-5: scoring and confidence thresholds centralized so the values can be reviewed in one place.
 const DEEP_RESEARCH_THRESHOLD = 75;
 const WATCHLIST_THRESHOLD = 60;
 const WEAK_SCORE_THRESHOLD = 30;
@@ -26,7 +26,7 @@ function argsOf(argv) {
     else if (["--output", "-o"].includes(argv[i])) args.output = argv[++i];
     else if (argv[i] === "--pretty") args.pretty = true;
     else if (["--help", "-h"].includes(argv[i])) args.help = true;
-    else throw new Error(`未知参数：${argv[i]}`);
+    else throw new Error(`Unknown argument: ${argv[i]}`);
   }
   return args;
 }
@@ -35,18 +35,19 @@ function isObject(value) { return value !== null && typeof value === "object" &&
 
 function parseJson(value, label) {
   const raw = String(value ?? "").trim();
-  if (!raw) return { value: null, normalized: false, error: `${label} 为空` };
+  if (!raw) return { value: null, normalized: false, error: `${label} is empty` };
   const fenced = raw.match(/^```(?:json)?\s*([\s\S]*?)\s*```/i);
   try { return { value: JSON.parse(fenced ? fenced[1] : raw), normalized: Boolean(fenced), error: null }; }
-  catch { return { value: null, normalized: Boolean(fenced), error: `${label} 不是有效 JSON` }; }
+  catch { return { value: null, normalized: Boolean(fenced), error: `${label} is not valid JSON` }; }
 }
 
 const PACKET_LABELS = { IDENTITY: "identityPacket", FINANCIAL: "financialPacket", QUALITATIVE: "qualitativePacket" };
 
-// 修复 H-2:从 prompt 字符串里抽 JSON。
-// 1) 支持 ```json / ``` 围栏（云端常见格式）
-// 2) 找到下一个 \nLABEL: 前先用 JSON.parse 试探,避免误切 JSON 内含 \nLABEL: 的字符串
-// 3) 任何异常返回 null,调用方负责 fallback
+// H-2: extract a JSON packet from a prompt string.
+// 1) Accept ```json / ``` fences (common cloud output format)
+// 2) Use JSON.parse to probe for the shortest valid boundary, avoiding false cuts on JSON
+//    that happens to contain `\nLABEL:` inside a string value
+// 3) Any failure returns null; caller is responsible for fallback
 function extractPacketFromPrompt(prompt, label) {
   const idx = prompt.indexOf(label + ":");
   if (idx === -1) return null;
@@ -58,10 +59,10 @@ function extractPacketFromPrompt(prompt, label) {
     if (otherIdx > 0 && otherIdx < endIdx) endIdx = otherIdx;
   }
   let jsonStr = afterLabel.slice(0, endIdx).trim();
-  // 移除 ```json ... ``` 围栏（云端有时用 markdown 包裹 JSON）
+  // Strip ```json ... ``` fences (cloud sometimes wraps JSON in markdown)
   const fenceMatch = jsonStr.match(/^```(?:json)?\s*([\s\S]*?)\s*```\s*$/);
   if (fenceMatch) jsonStr = fenceMatch[1].trim();
-  // 用 JSON.parse 试探:取可能的最长前缀直到能 parse 成功,避免误切
+  // Probe with JSON.parse from the longest possible prefix down to the shortest valid object.
   let lastValid = -1;
   for (let i = jsonStr.length; i > 0; i -= 1) {
     const candidate = jsonStr.slice(0, i).trim();
@@ -72,7 +73,7 @@ function extractPacketFromPrompt(prompt, label) {
         lastValid = candidate.length;
         break;
       }
-    } catch { /* 继续缩短 */ }
+    } catch { /* keep shortening */ }
   }
   if (lastValid > 0) jsonStr = jsonStr.slice(0, lastValid);
   try { return JSON.parse(jsonStr); } catch { return null; }
@@ -84,13 +85,13 @@ function stepsToInput(outer) {
   const result = {};
   for (const step of Object.values(steps)) {
     if (!isObject(step)) continue;
-    // 优先 1：云端若把 packet 作为结构化 input 字段传入(优于嵌入 prompt 字符串)
+    // Preferred 1: structured step.input from cloud beats embedded prompt strings.
     if (isObject(step.input)) {
       for (const packetKey of Object.values(PACKET_LABELS)) {
         if (!result[packetKey] && step.input[packetKey]) result[packetKey] = step.input[packetKey];
       }
     }
-    // 优先 2：退化用 prompt 字符串抽取
+    // Preferred 2: fall back to extracting from the prompt string.
     if (typeof step.prompt === "string") {
       for (const [label, key] of Object.entries(PACKET_LABELS)) {
         if (result[key]) continue;
@@ -110,23 +111,24 @@ function parseInput(row) {
   } catch { return {}; }
   if (!isObject(outer)) return {};
 
-  // 优先 1：outer 自身就含三个 packet 对象(非字符串)。字符串 packet 留给退化路径 JSON.parse。
+  // Preferred 1: outer directly contains the three packet objects (not strings).
+  // String packets are left for the JSON.parse fallback path.
   const directPackets = {};
   for (const packetKey of Object.values(PACKET_LABELS)) {
     if (isObject(outer[packetKey])) directPackets[packetKey] = outer[packetKey];
   }
   if (Object.keys(directPackets).length >= 3) return directPackets;
 
-  // 优先 2：outer.inputRows[0] 是标准 Market 行结构
+  // Preferred 2: outer.inputRows[0] is a standard Market row.
   if (Array.isArray(outer.inputRows) && outer.inputRows.length && isObject(outer.inputRows[0])) {
     return outer.inputRows[0];
   }
 
-  // 优先 3：outer.steps[].input 结构化输入 或 step.prompt 字符串抽取
+  // Preferred 3: outer.steps[].input structured input or step.prompt string extraction.
   const stepsResult = stepsToInput(outer);
   if (stepsResult) return stepsResult;
 
-  // 退化：把每个 value 当 JSON 字符串解析
+  // Fallback: try to JSON.parse each string value.
   const input = {};
   for (const [key, value] of Object.entries(outer)) {
     if (typeof value !== "string") input[key] = value;
@@ -140,7 +142,7 @@ function parseInput(row) {
 
 function classify(value) {
   if (!isObject(value)) return null;
-  // 修复 M-6:云端可显式声明 dimension,优先于字段名启发式匹配(避免 LLM 串行输出导致错分类)
+  // M-6: cloud can declare dimension explicitly; that wins over field-name heuristics.
   if (typeof value.dimension === "string" && DIMENSIONS.includes(value.dimension)) return value.dimension;
   if ("business_model_score" in value && "understandability_score" in value) return "business";
   if ("moat_score" in value && "capital_allocation_score" in value) return "moat";
@@ -160,23 +162,24 @@ function reviewsOf(row, errors) {
   const reviews = {};
   let normalized = false;
   for (const [index, item] of (row.artifacts ?? []).entries()) {
-    const parsed = parseJson(artifactText(item), `第 ${index + 1} 个云端输出`);
+    const parsed = parseJson(artifactText(item), `cloud output #${index + 1}`);
     normalized ||= parsed.normalized;
     if (parsed.error) continue;
     const dimension = classify(parsed.value);
     if (!dimension) continue;
-    if (reviews[dimension]) errors.push(`检测到重复的 ${dimension} 维度输出`);
+    if (reviews[dimension]) errors.push(`duplicate ${dimension} dimension output detected`);
     else reviews[dimension] = parsed.value;
   }
-  for (const dimension of DIMENSIONS) if (!reviews[dimension]) errors.push(`缺少可识别的 ${dimension} 维度输出`);
+  for (const dimension of DIMENSIONS) if (!reviews[dimension]) errors.push(`missing identifiable ${dimension} dimension output`);
   return { reviews, normalized };
 }
 
 function pathParts(path) { return String(path).replace(/\[(\d+)\]/g, ".$1").split(".").filter(Boolean); }
 
 function getPath(root, path) {
-  // 修复 M-7:用 hasOwnProperty.call 而非 `in`,避免 `identityPacket.toString` 之类的原型链属性被误解析。
-  // 之前会被 same() 兜住,但 auditEvidence 会输出"source_value 与输入原值不一致"误导为业务问题。
+  // M-7: use hasOwnProperty.call instead of `in` so prototype-chain keys
+  // (e.g. `identityPacket.toString`) no longer match by accident. They used to be
+  // caught by same() but produced a misleading "value mismatch" error.
   let value = root;
   for (const part of pathParts(path)) {
     if (value === null || value === undefined) return undefined;
@@ -219,15 +222,15 @@ function text(value) { return String(value ?? "").trim(); }
 
 function score(value, label, errors) {
   if (!Number.isInteger(value) || value < 0 || value > 100) {
-    errors.push(`${label} 必须是 0-100 整数`);
+    errors.push(`${label} must be an integer between 0 and 100`);
     return 0;
   }
   return value;
 }
 
 function requireArray(review, keys, dimension, errors) {
-  for (const key of keys) if (!Array.isArray(review[key])) errors.push(`${dimension}.${key} 必须是数组`);
-  if (!text(review.summary)) errors.push(`${dimension}.summary 不能为空`);
+  for (const key of keys) if (!Array.isArray(review[key])) errors.push(`${dimension}.${key} must be an array`);
+  if (!text(review.summary)) errors.push(`${dimension}.summary must not be empty`);
 }
 
 function shape(reviews, errors) {
@@ -246,11 +249,11 @@ function auditEvidence(reviews, input) {
     for (const item of review.evidence_records ?? []) {
       const ref = text(item?.source_ref);
       let reason = "";
-      if (!text(item?.claim) || !ref || item?.source_value === undefined || !text(item?.period) || !text(item?.unit)) reason = "证据字段不完整";
-      else if (!sourceRef(ref)) reason = "source_ref 必须使用完整公开输入路径";
-      else if (!atomic(item.source_value)) reason = "source_value 必须是原子值";
-      else if (getPath(input, ref) === undefined) reason = "source_ref 无法解析到输入";
-      else if (!same(getPath(input, ref), item.source_value)) reason = "source_value 与输入原值不一致";
+      if (!text(item?.claim) || !ref || item?.source_value === undefined || !text(item?.period) || !text(item?.unit)) reason = "evidence fields incomplete";
+      else if (!sourceRef(ref)) reason = "source_ref must use a full public input path";
+      else if (!atomic(item.source_value)) reason = "source_value must be an atomic value";
+      else if (getPath(input, ref) === undefined) reason = "source_ref cannot be resolved against the input";
+      else if (!same(getPath(input, ref), item.source_value)) reason = "source_value does not match the input's original value";
       if (reason) rejected.push({ dimension, claim: item?.claim ?? "", source_ref: ref, reason });
       else {
         const id = `${dimension}:${ref}:${JSON.stringify(item.source_value)}`;
@@ -266,15 +269,15 @@ function auditEvidence(reviews, input) {
 }
 
 function traceRecords(records, label, input, errors, { min, max, condition = false } = {}) {
-  if (!Array.isArray(records)) return errors.push(`${label} 必须是数组`);
-  if (records.length < min || records.length > max) errors.push(`${label} 必须包含 ${min}-${max} 项`);
+  if (!Array.isArray(records)) return errors.push(`${label} must be an array`);
+  if (records.length < min || records.length > max) errors.push(`${label} must contain ${min}-${max} entries`);
   for (const item of records) {
-    if (!text(item?.[condition ? "condition" : "claim"])) errors.push(`${label} 条目缺少 ${condition ? "condition" : "claim"}`);
-    if (!sourceRef(item?.source_ref)) errors.push(`${label}.source_ref 必须使用完整输入路径`);
-    else if (getPath(input, item.source_ref) === undefined) errors.push(`${label}.source_ref 无法解析到输入`);
-    else if (!atomic(item.source_value) || !same(getPath(input, item.source_ref), item.source_value)) errors.push(`${label}.source_value 未原样复制输入原子值`);
-    if (!text(item?.period) || !text(item?.unit)) errors.push(`${label} 条目缺少 period 或 unit`);
-    if (condition && !["rerun_required", "conclusion_invalidated"].includes(item?.action)) errors.push(`${label}.action 无效`);
+    if (!text(item?.[condition ? "condition" : "claim"])) errors.push(`${label} entry missing ${condition ? "condition" : "claim"}`);
+    if (!sourceRef(item?.source_ref)) errors.push(`${label}.source_ref must use a full input path`);
+    else if (getPath(input, item.source_ref) === undefined) errors.push(`${label}.source_ref cannot be resolved against the input`);
+    else if (!atomic(item.source_value) || !same(getPath(input, item.source_ref), item.source_value)) errors.push(`${label}.source_value does not verbatim copy an atomic input value`);
+    if (!text(item?.period) || !text(item?.unit)) errors.push(`${label} entry missing period or unit`);
+    if (condition && !["rerun_required", "conclusion_invalidated"].includes(item?.action)) errors.push(`${label}.action is invalid`);
   }
 }
 
@@ -282,7 +285,7 @@ function numericTokens(value) { return String(value ?? "").match(/(?<![A-Za-z])[
 
 function forbiddenForecast(value) {
   const body = String(value ?? "");
-  return /(目标价|未来股价|预测增长率|预测利润率|贴现率|终值倍数|概率|target price|future share price|forecast growth|forecast margin|discount rate|terminal multiple)/i.test(body) && numericTokens(body).length > 0;
+  return /(target price|future share price|forecast growth|forecast margin|discount rate|terminal multiple|probability)/i.test(body) && numericTokens(body).length > 0;
 }
 
 function unknownKey(value) {
@@ -292,26 +295,26 @@ function unknownKey(value) {
 function mergeRow(row, index) {
   const errors = [];
   let input = {};
-  try { input = parseInput(row); } catch { errors.push("inputJson 无法解析"); }
-  if (row.status && row.status !== "completed") errors.push(`云端行状态为 ${row.status}`);
+  try { input = parseInput(row); } catch { errors.push("inputJson could not be parsed"); }
+  if (row.status && row.status !== "completed") errors.push(`cloud row status is ${row.status}`);
   const { reviews, normalized } = reviewsOf(row, errors);
   const ticker = text(input.identityPacket?.ticker).toUpperCase();
-  if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker)) errors.push("输入 ticker 无效");
+  if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker)) errors.push("input ticker is invalid");
   if (errors.length) return rejected(row, index, ticker, errors, normalized);
 
-  // 修复 M-4:每维度 evidence_records 数量与 source_value 字符串长度上限,防止异常/恶意输出撑爆报告
+  // M-4: per-dimension evidence_records and source_value length caps to prevent oversized outputs.
   for (const [dimension, review] of Object.entries(reviews)) {
     const records = review.evidence_records ?? [];
     if (records.length > MAX_EVIDENCE_RECORDS) {
-      errors.push(`${dimension}.evidence_records 数量 ${records.length} 超过 ${MAX_EVIDENCE_RECORDS} 上限`);
+      errors.push(`${dimension}.evidence_records count ${records.length} exceeds the ${MAX_EVIDENCE_RECORDS} cap`);
     }
     for (const [i, item] of records.entries()) {
       if (typeof item?.source_value === "string" && item.source_value.length > MAX_SOURCE_VALUE_CHARS) {
-        errors.push(`${dimension}.evidence_records[${i}].source_value 长度 ${item.source_value.length} 超过 ${MAX_SOURCE_VALUE_CHARS} 上限`);
+        errors.push(`${dimension}.evidence_records[${i}].source_value length ${item.source_value.length} exceeds the ${MAX_SOURCE_VALUE_CHARS} cap`);
       }
     }
     if ((review.unknowns ?? []).length > MAX_UNKNOWN_ITEMS) {
-      errors.push(`${dimension}.unknowns 数量超过 ${MAX_UNKNOWN_ITEMS} 上限`);
+      errors.push(`${dimension}.unknowns count exceeds the ${MAX_UNKNOWN_ITEMS} cap`);
     }
   }
 
@@ -320,13 +323,13 @@ function mergeRow(row, index) {
   const moat = reviews.moat;
   const fin = reviews.financial;
   const val = reviews.valuation;
-  if (!new Set(["pass", "uncertain", "fail"]).has(biz.circle_of_competence)) errors.push("circle_of_competence 无效");
-  if (!new Set(["insufficient_margin_of_safety", "evidence_insufficient", "eligible_for_manual_deep_research"]).has(val.judgment_state)) errors.push("judgment_state 无效");
+  if (!new Set(["pass", "uncertain", "fail"]).has(biz.circle_of_competence)) errors.push("circle_of_competence is invalid");
+  if (!new Set(["insufficient_margin_of_safety", "evidence_insufficient", "eligible_for_manual_deep_research"]).has(val.judgment_state)) errors.push("judgment_state is invalid");
   traceRecords(val.validity_basis, "validity_basis", input, errors, { min: 2, max: 3 });
   traceRecords(val.falsification_conditions, "falsification_conditions", input, errors, { min: 2, max: 4, condition: true });
   const basisRefs = new Set((val.validity_basis ?? []).map((item) => item?.source_ref));
-  if (![...basisRefs].some((ref) => /^financialPacket\.marketSnapshot\.(price|asOf)$/.test(ref))) errors.push("validity_basis 必须引用价格或价格时间");
-  if (![...basisRefs].some((ref) => /^(identityPacket\.(fiscalPeriod|dataAsOf)|financialPacket\.latestOperatingUpdate\.periodEnd|financialPacket\.annualHistory\.fiscalYearEnd\[\d+\])$/.test(ref))) errors.push("validity_basis 必须引用财报期间或数据截止日");
+  if (![...basisRefs].some((ref) => /^financialPacket\.marketSnapshot\.(price|asOf)$/.test(ref))) errors.push("validity_basis must reference price or price timestamp");
+  if (![...basisRefs].some((ref) => /^(identityPacket\.(fiscalPeriod|dataAsOf)|financialPacket\.latestOperatingUpdate\.periodEnd|financialPacket\.annualHistory\.fiscalYearEnd\[\d+\])$/.test(ref))) errors.push("validity_basis must reference fiscal period or data-as-of date");
 
   const components = {
     understandability: score(biz.understandability_score, "understandability_score", errors),
@@ -342,8 +345,8 @@ function mergeRow(row, index) {
   const veto = [];
   if (biz.circle_of_competence === "fail") veto.push("circle_of_competence_fail");
   for (const dimension of DIMENSIONS) if (evidence.byDimension[dimension] === 0) veto.push(`missing_verified_evidence_${dimension}`);
-  // 生存风险 veto：balance_sheet_score 缺失或非有限数时,视同弱资产负债表,触发否决。
-  // 修复 H-1:之前用 `undefined < 30` 会得到 false,导致云端漏返该字段时 veto 静默失效。
+  // Survival-risk veto: a missing or non-finite balance_sheet_score is treated as a weak balance sheet.
+  // H-1: the previous `undefined < 30` was always false, so a missing field silently bypassed this veto.
   const balanceSheetScore = Number(fin.balance_sheet_score);
   if ((fin.survival_risks?.length ?? 0) && (!Number.isFinite(balanceSheetScore) || balanceSheetScore < WEAK_SCORE_THRESHOLD))
     veto.push("survival_risk_with_weak_balance_sheet");
@@ -358,7 +361,7 @@ function mergeRow(row, index) {
   const overall = Math.round(Object.entries(WEIGHTS).reduce((sum, [key, weight]) => sum + components[key] * weight, 0));
   const unknowns = [...new Set(DIMENSIONS.flatMap((dimension) => (reviews[dimension].unknowns ?? []).map(unknownKey).filter(Boolean)))];
   const uniqueVeto = [...new Set(veto)];
-  // 修复 M-1:auditStatus 反映 veto 数量——有 veto 时应为 "vetoed",与 confidence/decision 一致
+  // M-1: auditStatus reflects veto count — `vetoed` / `fail` keep it consistent with confidence and decision.
   const auditStatus = uniqueVeto.includes("excessive_rejected_evidence")
     ? "fail"
     : uniqueVeto.length
@@ -366,7 +369,7 @@ function mergeRow(row, index) {
       : (evidence.rejected.length || unknowns.length > UNKNOWN_WARN_THRESHOLD)
         ? "warn"
         : "pass";
-  // 修复 M-17:confidence 表达式加显式括号与多行排版,避免 `?:` 嵌套误读
+  // M-17: confidence expression with explicit parentheses and multi-line layout to avoid `?:` nesting misreads.
   const confidence = uniqueVeto.length
     ? "low"
     : (evidence.verified.length >= HIGH_CONFIDENCE_MIN_EVIDENCE
@@ -403,7 +406,7 @@ function ranking(rows) {
 }
 
 export function mergeResults(payload) {
-  if (!Array.isArray(payload?.rows)) throw new Error("输入必须是 LoomLoom result-rows 完整响应");
+  if (!Array.isArray(payload?.rows)) throw new Error("input must be a complete LoomLoom result-rows response");
   const rows = payload.rows.map(mergeRow);
   const rejectedRows = rows.filter(({ valid }) => !valid).length;
   return { schemaVersion: "loomloom-us-value-local-audit/v1", valid: rejectedRows === 0, summary: { totalRows: rows.length, acceptedRows: rows.length - rejectedRows, rejectedRows, decisionEligibleRows: rows.filter(({ decision_eligible }) => decision_eligible).length }, ranking: ranking(rows), rows };
@@ -419,12 +422,11 @@ async function readText(path) {
 async function main() {
   const args = argsOf(process.argv.slice(2));
   if (args.help) return process.stdout.write("node scripts/merge-public-results.mjs --input <result-rows.json|-> [--output audit.json] [--pretty]\n");
-  if (!args.input) throw new Error("必须提供 --input");
+  if (!args.input) throw new Error("--input is required");
   const report = mergeResults(JSON.parse(await readText(args.input)));
   const output = `${JSON.stringify(report, null, args.pretty ? 2 : 0)}\n`;
   if (args.output) await writeFile(args.output, output, "utf8"); else process.stdout.write(output);
   process.exitCode = report.valid ? 0 : 1;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main().catch((error) => { process.stderr.write(`本地审计错误：${error.message}\n`); process.exitCode = 2; });
-
+if (import.meta.url === `file://${process.argv[1]}`) main().catch((error) => { process.stderr.write(`local audit error: ${error.message}\n`); process.exitCode = 2; });
