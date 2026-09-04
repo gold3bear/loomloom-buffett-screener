@@ -30,6 +30,7 @@ The hard-veto rules in `references/decision-policy.md` implement the same discip
 - Local preparation, validation, quoting, and report generation do NOT authorize paid execution.
 - Every real run must first fetch a server quote, show the user task count, currency, and fees, and obtain explicit confirmation for that run.
 - After user confirmation, any change in tickers, data, files, Listing, or quote requires re-validation, re-quote, and re-confirmation.
+- **Every fact in a packet must carry a provenance triple: source URL, as-of date, and source tier (S = SEC EDGAR / company IR, A = MarketWatch / Yahoo Finance quote, B = secondary news, C = never). C-tier sources are not evidence.** A fact without all three is treated as unverified and goes to `unknowns` — never into an evidence-bearing field. See [section 3.1](#31-hard-rule-every-number-traces-to-a-source-url) for the full provenance discipline.
 
 ## User Entry Points
 
@@ -97,6 +98,14 @@ The cloud step only reads what you put in. Garbage in, garbage out — and the f
 #### 3.1 Hard rule: every number traces to a source URL
 
 A number in a packet without a source URL goes to `unknowns` — never into an evidence-bearing field. The Skill will detect and report ungrounded numerics, but a downstream user should not have to read the report to discover the data was fabricated. If you cannot fetch a primary source for a fact, either retry, escalate to the user, or write the fact to `unknowns` with a one-line note explaining what blocked the fetch. Never round, never smooth, never estimate, never "ballpark".
+
+**Provenance triple — every fact carries three pieces of metadata:**
+
+1. **Source URL** — an HTTPS link that resolved at fetch time. The local audit and the cloud review will both reject evidence that points to a non-resolving or un-fetched URL.
+2. **As-of date** — the date the source published the fact, or the `asOf` timestamp on the quote page (not the time you fetched the page). See the freshness thresholds in 3.7.
+3. **Source tier** — one of: **S** = SEC EDGAR (10-K / 10-Q / 8-K) or company investor-relations press release, **A** = MarketWatch / Yahoo Finance / large quote aggregator, **B** = secondary news (Bloomberg / Reuters / FT / WSJ), **C** = forums / blogs / Wikipedia / Substack (never used as evidence). The full tier table is in 3.3.
+
+A fact with all three is verified. A fact missing any of the three is treated as unverified, moved to `unknowns`, and never cited by the cloud review. The downstream reader should be able to check the source URL, the as-of date, and the tier for every fact in the report without re-asking the local Agent.
 
 #### 3.2 One packet per ticker
 
