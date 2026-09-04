@@ -398,7 +398,7 @@ function mergeRow(row, index) {
   const fin = reviews.financial;
   const val = reviews.valuation;
   if (!new Set(["pass", "uncertain", "fail"]).has(biz.circle_of_competence)) errors.push("circle_of_competence is invalid");
-  if (!new Set(["insufficient_margin_of_safety", "evidence_insufficient", "eligible_for_manual_deep_research"]).has(val.judgment_state)) errors.push("judgment_state is invalid");
+  if (!new Set(["insufficient_margin_of_safety", "evidence_insufficient", "evidence_thin", "eligible_for_manual_deep_research"]).has(val.judgment_state)) errors.push("judgment_state is invalid");
   traceRecords(val.validity_basis, "validity_basis", input, errors, { min: 2, max: 3 });
   traceRecords(val.falsification_conditions, "falsification_conditions", input, errors, { min: 2, max: 4, condition: true });
   // Map bare source_refs (e.g. "marketSnapshot.price") to their full prefix by
@@ -443,7 +443,11 @@ function mergeRow(row, index) {
   if ((moat.governance_red_flags?.length ?? 0) && components.management_capital_allocation < WEAK_SCORE_THRESHOLD) veto.push("governance_red_flags_with_weak_management_score");
   if ((fin.accounting_red_flags?.length ?? 0) && fin.financial_quality_score < WEAK_SCORE_THRESHOLD) veto.push("accounting_red_flags_with_weak_financial_score");
   if (val.margin_of_safety_score < WEAK_SCORE_THRESHOLD) veto.push("insufficient_margin_of_safety");
-  if (val.judgment_state !== "eligible_for_manual_deep_research") veto.push("valuation_not_eligible_for_manual_deep_research");
+  // 3-tier calibration: only 'evidence_insufficient' triggers the explicit veto.
+  // 'evidence_thin' is the mid tier — surfaced as a watchlist decision, not a veto.
+  // 'insufficient_margin_of_safety' is the LLM's explicit verdict that price > intrinsic; the hard < 30 score veto already covers the numeric case.
+  if (val.judgment_state === "evidence_insufficient") veto.push("evidence_insufficient_for_valuation_anchor");
+  if (val.judgment_state === "insufficient_margin_of_safety") veto.push("insufficient_margin_of_safety_verdict");
   const valuationText = [val.summary, ...(val.positive_points ?? []), ...(val.contrary_points ?? []), ...(val.valuation_red_flags ?? [])].join("\n");
   if (forbiddenForecast(valuationText)) veto.push("forbidden_numeric_claims");
   if (evidence.rejected.length > evidence.verified.length || evidence.rejected.length >= EXCESSIVE_REJECTED_EVIDENCE_MIN) veto.push("excessive_rejected_evidence");
@@ -466,7 +470,17 @@ function mergeRow(row, index) {
         && unknowns.length <= HIGH_CONFIDENCE_MAX_UNKNOWNS)
       ? "high"
       : "medium";
-  const decision = uniqueVeto.length ? "pass" : biz.circle_of_competence === "uncertain" ? "watchlist" : overall >= DEEP_RESEARCH_THRESHOLD ? "deep_research" : overall >= WATCHLIST_THRESHOLD ? "watchlist" : "pass";
+  const decision = uniqueVeto.length
+    ? "pass"
+    : val.judgment_state === "evidence_thin"
+      ? "watchlist"
+      : biz.circle_of_competence === "uncertain"
+        ? "watchlist"
+        : overall >= DEEP_RESEARCH_THRESHOLD
+          ? "deep_research"
+          : overall >= WATCHLIST_THRESHOLD
+            ? "watchlist"
+            : "pass";
   const eligible = decision === "deep_research" && auditStatus === "pass" && confidence !== "low" && !uniqueVeto.length;
   const market = input.financialPacket?.marketSnapshot ?? {};
   return {

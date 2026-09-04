@@ -38,9 +38,28 @@ Any of the following prevents a row from entering `deep_research`:
 4. Major governance red flags co-occur with a low management / capital allocation score.
 5. Accounting red flags co-occur with a low financial quality score.
 6. Margin of safety score is below 30.
-7. Valuation judgment state is not `eligible_for_manual_deep_research`.
-8. Unauthorized forecast numbers or target prices are detected in the cloud output.
-9. Rejected evidence outweighs verified evidence, or rejected evidence hits 6.
+7. Valuation `judgment_state` is `evidence_insufficient` (the LLM could not defend ANY valuation anchor — no owner earnings, no historical P/E range, no comparable multiples).
+8. Valuation `judgment_state` is `insufficient_margin_of_safety_verdict` (the LLM explicitly concludes the current price is above a defensible intrinsic value).
+9. Unauthorized forecast numbers or target prices are detected in the cloud output.
+10. Rejected evidence outweighs verified evidence, or rejected evidence hits 6.
+
+## 3-Tier Valuation Calibration (added in v3)
+
+`judgment_state` is no longer binary. There are four values the cloud LLM may emit, with three distinct downstream behaviors:
+
+- `eligible_for_manual_deep_research` — passes ranking; margin_of_safety_score ≥ 60, valuation_score ≥ 60, no red flag, and the LLM has either explicit owner earnings in the packet or an explicit historical P/E range from a 10-K Item 5 citation.
+- `evidence_thin` — **not a veto**; the row is surfaced as a `watchlist` decision so a human can manually anchor valuation. Typical case: current P/E plus qualitative moat evidence, but no normalized owner earnings or 10-K Item 5 historical range supplied. The cloud LLM is expected to prefer this tier over `evidence_insufficient` whenever any defensible anchor is present.
+- `insufficient_margin_of_safety` — treated as a hard veto via rule 8; the LLM explicitly states the price is above the intrinsic value anchor. Distinct from the numeric `< 30` veto in rule 6.
+- `evidence_insufficient` — hard veto via rule 7; the LLM could defend no anchor. Reserve this for genuinely opaque issuers (recent IPOs with no 10-K history, foreign issuers without US filings, or tickers the local Agent could not source 3 fiscal years of financials for).
+
+The decision-tier mapping is therefore:
+
+| `judgment_state` | Decision tier | `decision_eligible` |
+|---|---|---|
+| `eligible_for_manual_deep_research` (and no other veto) | `deep_research` if overall ≥ threshold, else `watchlist` | `true` only if `deep_research` |
+| `evidence_thin` (and no other veto) | `watchlist` | `false` |
+| `insufficient_margin_of_safety` (any score) | `pass` (vetoed) | `false` |
+| `evidence_insufficient` (any score) | `pass` (vetoed) | `false` |
 
 ## Valuation Falsifiability Requirements
 
@@ -61,5 +80,7 @@ Rank only rows with `decision_eligible=true`, comparing in order:
 3. Overall score.
 4. Per-dimension scores: business model, moat, financial quality, valuation.
 5. Ticker (alphabetical) for deterministic stability.
+
+Rows with `decision_eligible=false` are still surfaced in the report under a separate **Watchlist** section, in this order: `evidence_thin` rows first (these have no veto and only lack a normalized earnings anchor — a human deep dive can resolve them quickly), then `insufficient_margin_of_safety` and `evidence_insufficient` rows. Within each band, sort by overall score descending.
 
 The report must show price and timestamp, fiscal period, verified evidence, contrary evidence, unknowns, veto items, and falsification conditions.
