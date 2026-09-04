@@ -77,6 +77,10 @@ docs/brand-spec.md                                      Page visual and asset sp
 node --test skill/loomloom-019fad3b-8831-7986-bdd0-db4620e261b8/scripts/*.test.mjs
 ```
 
+## Overseas distribution (CogFoundry)
+
+The Public Listing is the contract every external user sees (`019fad3b-8831-7986-bdd0-db4620e261b8` on ShengSuanyun). The creator-side internal copy of the same Skill is mirrored to a private CogFoundry template for the overseas distribution channel so the English-localized Skill and the four-filters template stay in lockstep. The CogFoundry copy runs through the same local preflight, the same local evidence audit, the same hard vetos, and the same Markdown report — only the input wire shape differs and the adapter lives in the Skill scripts. Until the CogFoundry copy is published to the Marketplace, do not switch end users off the Public Listing path described in `SKILL.md`.
+
 ## License
 
 This repository is released under the [MIT License](LICENSE). Use remains subject to the LoomLoom Terms of Service and any third-party data-source restrictions.
