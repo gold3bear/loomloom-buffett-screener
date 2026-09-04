@@ -6,17 +6,16 @@
 > expected to interrogate against the underlying SEC filings.
 
 A Skill for local Agents (Codex / Claude Code / WorkBuddy / etc.) that
-performs batch long-term value screening of US equities. The local Agent
-collects and validates ticker data, then the LoomLoom public SkillBot
-runs a parallel research pass across Buffett's four filters, and finally
-the local Agent audits the evidence, applies hard vetos, and emits a
-deterministic Markdown report.
+performs batch long-term value screening of US equities through
+**Warren Buffett's four filters**. The local Agent collects and validates
+ticker data, then the LoomLoom public SkillBot runs a parallel research
+pass across those four filters, and finally the local Agent audits the
+evidence, applies hard vetos, and emits a deterministic Markdown report.
 
-The overseas distribution channel runs on the **CogFoundry** platform
-(`https://loomloom.cogfoundry.ai`) and the Skill itself is mirrored under
-`gold3bear/loomloom-buffett-screener`. The same Skill scripts drive both
-the domestic Public Listing and the CogFoundry mirror — only the input
-wire shape and the cloud adapter differ.
+The Skill is distributed through the **CogFoundry** platform
+(`https://loomloom.cogfoundry.ai`) and the source-of-truth repo lives at
+`gold3bear/loomloom-buffett-screener`. The local Agent only needs the
+extracted Skill directory, the `loomloom` CLI, and a CogFoundry credential.
 
 ## Investment Philosophy: Buffett's Four Filters
 
@@ -84,8 +83,6 @@ as a structurally weak business, and the report should say so.
 
 ## Hard Boundaries
 
-- Public Listing: `019fad3b-8831-7986-bdd0-db4620e261b8`. The domestic
-  Public Listing is the contract every external user sees.
 - **Always read the current Listing and public input schema before
   executing. Run only through the Market path.**
 - Never reveal, infer, or package cloud-side private prompts, step
@@ -248,18 +245,6 @@ templates/
     template.json                                                  4-way parallel review prompt spec
     README.md                                                      TemplateSpec authoring notes
 ```
-
-## Two Repos, One Skill
-
-This repository is the source of truth for the Skill directory. The
-overseas distribution channel lives in
-[gold3bear/loomloom-buffett-screener](https://github.com/gold3bear/loomloom-buffett-screener),
-which carries the same Skill with default branch `release/v3.0-cogfoundry-buffett`
-mirrored to the CogFoundry private template. Until the CogFoundry copy
-is published to the CogFoundry Marketplace, end users stay on the
-domestic Public Listing path described in `SKILL.md`. The two repos
-diverge only in deployment instructions and release artifacts; the
-Skill source, the local audit, and the hard vetos are identical.
 
 ## License
 
