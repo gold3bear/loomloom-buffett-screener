@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#030817">
-  <title>Winners, Picked by the Hundreds | LoomLoom US Equity Value Screening</title>
+  <title>Buffett Four Filters, in Parallel | LoomLoom US Equity Long-Term Value Screening</title>
   <style>
     :root {
       --ink: #030817;
@@ -306,9 +306,45 @@
       *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
       .reveal { opacity: 1; transform: none; }
     }
+
+    .risk-banner {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 18px;
+      margin: 14px auto 0;
+      width: var(--page);
+      border: 1px solid rgba(255, 133, 133, .55);
+      border-radius: 14px;
+      background: rgba(255, 133, 133, .08);
+      color: var(--white);
+      font-size: 13px;
+      line-height: 1.55;
+      letter-spacing: -.005em;
+    }
+    .risk-banner .kicker {
+      flex: 0 0 auto;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: rgba(255, 133, 133, .15);
+      color: var(--danger);
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .risk-banner b { color: var(--white); font-weight: 700; }
+    @media (max-width: 720px) {
+      .risk-banner { flex-direction: column; align-items: flex-start; }
+    }
   </style>
 </head>
 <body>
+  <aside class="risk-banner" role="note" aria-label="Risk disclaimer">
+    <span class="kicker">Not investment advice</span>
+    <span><b>This project does not constitute investment, legal, tax, or accounting advice.</b> It is a research aid only. The Skill does not recommend buying, selling, or holding any security, does not issue target prices or position sizes, and does not weigh in on whether any individual investor should act on the output. Past performance is not indicative of future results. You are responsible for your own investment decisions and should consult a licensed professional before acting on anything the Skill produces.</span>
+  </aside>
+
   <header class="nav shell">
     <div class="nav-inner">
       <a href="#top" class="brand" aria-label="LoomLoom US Equity Value Screening">
@@ -319,21 +355,21 @@
         <button type="button" data-scroll="method">Research lens</button>
         <button type="button" data-scroll="start">Get started</button>
       </nav>
-      <a class="nav-cta" href="https://github.com/gold3bear/loomloom-us-value-screening-skill/releases/latest/download/loomloom-us-value-screening-skill-v2.zip">Download Skill</a>
+      <a class="nav-cta" href="https://github.com/gold3bear/loomloom-buffett-screener/releases/latest/download/loomloom-buffett-screener-v3.zip">Download Skill</a>
     </div>
   </header>
 
   <main id="top">
     <section class="hero shell">
       <div class="hero-copy">
-        <span class="eyebrow">Value-investing research workflow</span>
-        <h1>Winners, <strong>picked from the hundreds</strong><br>batch screening, finished in a snap</h1>
-        <p class="hero-lead">Run parallel, auditable research across many tickers. Built for <b>Workbuddy, Codex, Claude Code, and OpenClaw</b>.</p>
+        <span class="eyebrow">Buffett's four filters, run in parallel</span>
+        <h1>Winners, <strong>picked by four filters</strong><br>Circle of competence. Moat. Management. Margin of safety.</h1>
+        <p class="hero-lead">A research-aid Skill for batch long-term value screening of US equities, with hard local evidence audit, provenance-tiered sources, and three-tier valuation calibration. Built for <b>Workbuddy, Codex, Claude Code, and OpenClaw</b>.</p>
         <div class="hero-actions">
-          <a class="button-primary" href="https://github.com/gold3bear/loomloom-us-value-screening-skill/releases/latest/download/loomloom-us-value-screening-skill-v2.zip">Download Skill</a>
+          <a class="button-primary" href="https://github.com/gold3bear/loomloom-buffett-screener/releases/latest/download/loomloom-buffett-screener-v3.zip">Download Skill</a>
           <button class="button-secondary" type="button" data-scroll="workflow">See the workflow</button>
         </div>
-        <p class="hero-note">"Finished in a snap" describes the batch-workflow experience. Data prep, local validation, and per-run quote confirmation still follow the real flow.</p>
+        <p class="hero-note">Research aid only. No target prices, no position sizes, no buy/sell instructions — every row carries a price timestamp, source URL, and falsification anchor so the human reader decides.</p>
       </div>
       <div class="hero-visual" aria-label="Schematic showing 100 tickers filtered by cloud review and local validation into a research shortlist">
         <div class="orbit"></div>
@@ -343,10 +379,10 @@
     </section>
 
     <section class="proof-strip shell reveal" aria-label="Core value">
-      <div class="proof-cell"><span class="proof-kicker">01 / 100 → 1</span><strong>Winners, picked from the hundreds</strong><p>From a ticker list or a standard metrics table, turn a candidate pool into a research queue.</p></div>
-      <div class="proof-cell"><span class="proof-kicker">02 / CLOUD</span><strong>Four-dimension cloud review</strong><p>Business, moat, financials, and valuation run in parallel — no single-thread judgment.</p></div>
-      <div class="proof-cell"><span class="proof-kicker">03 / LOCAL</span><strong>Hard local evidence audit</strong><p>Reject unsourced numbers, broken references, and any inference beyond the input.</p></div>
-      <div class="proof-cell"><span class="proof-kicker">04 / OUTPUT</span><strong>Conclusions must be falsifiable</strong><p>Every report keeps the price timestamp, risks, unknowns, and re-run conditions.</p></div>
+      <div class="proof-cell"><span class="proof-kicker">01 / 4 FILTERS</span><strong>Buffett's four filters, in parallel</strong><p>Circle of competence, moat, management, and margin of safety — each on its own evidence audit, run side-by-side per row.</p></div>
+      <div class="proof-cell"><span class="proof-kicker">02 / CLOUD</span><strong>Auditable cloud review</strong><p>Four parallel research dimensions per ticker; quote first, then explicit user confirmation before any paid execution.</p></div>
+      <div class="proof-cell"><span class="proof-kicker">03 / LOCAL</span><strong>Provenance-tiered evidence</strong><p>Every fact carries a source URL, an as-of date, and an S/A/B/C tier. C-tier sources are not evidence; tier-S is the only audit-passing bar.</p></div>
+      <div class="proof-cell"><span class="proof-kicker">04 / OUTPUT</span><strong>Falsifiable, never certain</strong><p>Every row keeps the price timestamp, fiscal period, risks, unknowns, and re-run conditions. Three-tier valuation calibration: deep research, watchlist (evidence thin), or vetoed.</p></div>
     </section>
 
     <section id="workflow" class="section shell">
@@ -360,17 +396,17 @@
     </section>
 
     <section id="method" class="section shell">
-      <div class="section-heading reveal"><p class="eyebrow">Value-investing framework</p><h2>Look at the business<br>and the people first,<br>then at the price.</h2></div>
+      <div class="section-heading reveal"><p class="eyebrow">Buffett's four filters</p><h2>Look at the business<br>and the people first,<br>then at the price.</h2></div>
       <div class="method-grid reveal">
         <article class="method-panel">
-          <span class="eyebrow">RESEARCH LENSES</span>
-          <h3>We don't let the model "pick stocks." We use one evidence definition to narrow the research surface.</h3>
-          <p>The framework emphasizes understanding the business model, long-term cash flow, moat, management, and capital allocation. Price judgment must bind to both a price timestamp and a fiscal period.</p>
+          <span class="eyebrow">FOUR LENSES, ONE EVIDENCE DEFINITION</span>
+          <h3>We don't let the model "pick stocks." Each filter runs its own evidence audit, and a hard local veto gates the ranking.</h3>
+          <p>The framework emphasizes understanding the business model, long-term cash flow, moat, management, and capital allocation. Price judgment must bind to both a price timestamp and a fiscal period; without that anchor, the row is flagged <em>evidence_thin</em> in the report instead of being silently approved.</p>
           <div class="lens-list">
-            <div class="lens"><b>01</b><strong>Understandability and business model</strong><span>First answer how the company makes money</span></div>
-            <div class="lens"><b>02</b><strong>Moat and capital allocation</strong><span>Facts, not stories</span></div>
-            <div class="lens"><b>03</b><strong>Financial quality and survival risk</strong><span>Cash flow, leverage, dilution, and red flags</span></div>
-            <div class="lens"><b>04</b><strong>Valuation and opportunity cost</strong><span>No target price; keep falsifiable anchors</span></div>
+            <div class="lens"><b>01</b><strong>Circle of competence &amp; business model</strong><span>First answer how the company makes money</span></div>
+            <div class="lens"><b>02</b><strong>Moat &amp; management / capital allocation</strong><span>Facts, not stories; vetting red flags with weak scores</span></div>
+            <div class="lens"><b>03</b><strong>Financial quality &amp; survival risk</strong><span>Cash flow, leverage, dilution, and accounting red flags</span></div>
+            <div class="lens"><b>04</b><strong>Valuation with margin of safety</strong><span>No target price; three-tier calibration (eligible / evidence_thin / vetoed)</span></div>
           </div>
         </article>
         <aside class="audit-rail">
@@ -384,20 +420,23 @@
     <section id="start" class="action-band shell reveal">
       <div class="action-inner">
         <h2>Pick the few —<br>and review every one.</h2>
-        <p>Download the Skill to your Agent and add your own LoomLoom credentials. From then on, just hand over a ticker list or a metrics table. Before any cloud run, the Agent will surface the current quote and wait for your confirmation.</p>
+        <p>Download the Skill to your Agent and add your own CogFoundry credentials. From then on, just hand over a ticker list or a metrics table. Before any cloud run, the Agent will surface the current quote and wait for your confirmation.</p>
         <div class="hero-actions">
-          <a class="button-primary" href="https://github.com/gold3bear/loomloom-us-value-screening-skill/releases/latest/download/loomloom-us-value-screening-skill-v2.zip">Download US Equity Value Screening Skill</a>
+          <a class="button-primary" href="https://github.com/gold3bear/loomloom-buffett-screener/releases/latest/download/loomloom-buffett-screener-v3.zip">Download US Equity Value Screening Skill</a>
           <button class="button-secondary" type="button" data-copy>Copy invocation prompt</button>
         </div>
         <div class="prompt-box" aria-label="Agent invocation prompt">
-          <code id="prompt-text">First check whether the Skill is installed at [gold3bear/loomloom-us-value-screening-skill](https://github.com/gold3bear/loomloom-us-value-screening-skill). If not, install it from the GitHub Release, then use the installed "US Equity Long-Term Value Batch Screening" Skill and strictly follow its SKILL.md. Analyze the US tickers I provide, or the CSV/Excel/standard financial metrics table I upload. First check that the LoomLoom CLI is ready; if not, follow the Skill's install guide, install the CLI, and run `loomloom doctor`. Next, locally prepare, fill, and validate the data, then run preflight. Once preflight passes, generate the Market request and fetch the server quote. Show me the task count, currency, estimated cost, data-as-of time, and the main risks. Wait for my explicit confirmation in the current conversation before calling the cloud. When the run completes, perform local evidence audit, hard-veto review, and ranking, then deliver an auditable Markdown report. Do not output target prices, position sizes, or buy/sell instructions.</code>
+          <code id="prompt-text">First check whether the Skill is installed at [gold3bear/loomloom-buffett-screener](https://github.com/gold3bear/loomloom-buffett-screener). If not, install it from the GitHub Release, then use the installed "US Equity Long-Term Value Batch Screening" Skill and strictly follow its SKILL.md. Analyze the US tickers I provide, or the CSV/Excel/standard financial metrics table I upload. First check that the LoomLoom CLI is ready; if not, follow the Skill's install guide, install the CLI via `loomloom login`, and run `loomloom doctor`. Next, locally prepare, fill, and validate the data, then run preflight. Once preflight passes, generate the Market request and fetch the server quote. Show me the task count, currency, estimated cost, data-as-of time, and the main risks. Wait for my explicit confirmation in the current conversation before calling the cloud. When the run completes, perform local evidence audit, hard-veto review, and three-tier valuation calibration, then deliver an auditable Markdown report. Do not output target prices, position sizes, or buy/sell instructions.</code>
           <button class="copy-button" type="button" data-copy>Copy</button>
         </div>
       </div>
     </section>
   </main>
 
-  <footer class="footer shell"><span>LoomLoom × Workbuddy · US Equity Long-Term Value Batch Screening</span><span>Research aid only. Not investment advice. No target prices, position sizes, or buy/sell instructions.</span></footer>
+  <footer class="footer shell">
+    <span><strong>Not investment advice.</strong> This project does not constitute investment, legal, tax, or accounting advice. Research aid only — no target prices, no position sizes, no buy / sell / hold instructions.</span>
+    <span>LoomLoom · US Equity Long-Term Value Batch Screening · Buffett four filters</span>
+  </footer>
 
   <script>
     const motionReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
