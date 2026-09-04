@@ -36,7 +36,7 @@ test("stale price blocks execution", () => {
 test("missing PE is degraded when unknown is documented", () => {
   const input = packet();
   input.financialPacket.marketSnapshot.pe = null;
-  input.financialPacket.unknowns = ["PE 无意义：公司当期亏损"];
+  input.financialPacket.unknowns = ["PE not meaningful: company is loss-making this period"];
   const report = preflight([input], { asOf: "2026-07-29" });
   assert.equal(report.valid, true);
 });
