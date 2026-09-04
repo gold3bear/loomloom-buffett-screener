@@ -111,6 +111,37 @@ function parseInput(row) {
   } catch { return {}; }
   if (!isObject(outer)) return {};
 
+  // Preferred 0 (cogfoundry): outer.tickerPacket is a single string with the three packets
+  // concatenated in identityPacket → financialPacket → qualitativePacket order, separated
+  // by newlines. This is the shape produced by the LoomLoom US Equity Screening template
+  // (templates/buffett-four-filters.cogfoundry/template.json) when users provide one row
+  // of tickerPacket input.
+  if (typeof outer.tickerPacket === "string" && outer.tickerPacket.trim()) {
+    const segments = outer.tickerPacket.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+    if (segments.length >= 3) {
+      const reassembled = {};
+      for (const segment of segments) {
+        try {
+          const obj = JSON.parse(segment);
+          if (!isObject(obj)) continue;
+          if (isObject(obj.identityPacket)) Object.assign(reassembled, { identityPacket: obj.identityPacket });
+          if (isObject(obj.financialPacket)) Object.assign(reassembled, { financialPacket: obj.financialPacket });
+          if (isObject(obj.qualitativePacket)) Object.assign(reassembled, { qualitativePacket: obj.qualitativePacket });
+          // Or the segment may already be one of the three packets directly.
+          for (const key of Object.values(PACKET_LABELS)) {
+            if (isObject(obj[key]) && !reassembled[key]) reassembled[key] = obj[key];
+            if (PACKET_LABELS.IDENTITY === key && obj.ticker && !reassembled[key]) reassembled[key] = obj;
+            if (PACKET_LABELS.FINANCIAL === key && obj.marketSnapshot && !reassembled[key]) reassembled[key] = obj;
+            if (PACKET_LABELS.QUALITATIVE === key && (Array.isArray(obj.businessModel) || Array.isArray(obj.moatEvidence)) && !reassembled[key]) reassembled[key] = obj;
+          }
+        } catch { /* skip malformed segment */ }
+      }
+      if (reassembled.identityPacket || reassembled.financialPacket || reassembled.qualitativePacket) {
+        return reassembled;
+      }
+    }
+  }
+
   // Preferred 1: outer directly contains the three packet objects (not strings).
   // String packets are left for the JSON.parse fallback path.
   const directPackets = {};
@@ -193,6 +224,30 @@ function sourceRef(value) {
   return /^(identityPacket|financialPacket|qualitativePacket)(?:\.[A-Za-z_$][A-Za-z0-9_$]*|\[\d+\])+$/.test(String(value ?? ""));
 }
 
+// A looser check used only by valuation.reference docs: validity_basis and
+// falsification_conditions. The LLM sometimes emits a bare path (e.g.
+// "marketSnapshot.price") without the "financialPacket." prefix. We accept
+// the bare form here and let resolveRef re-add the prefix at lookup time.
+function sourceRefLoose(value) {
+  const s = String(value ?? "");
+  if (!s) return false;
+  if (sourceRef(s)) return true;
+  return /^[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*|\[\d+\])*$/.test(s);
+}
+
+// Resolve a source_ref (full or bare) to the input value. For bare paths we
+// try the three packet prefixes in order; first hit wins.
+function resolveRef(input, ref) {
+  if (ref === undefined || ref === null) return undefined;
+  if (sourceRef(ref)) return getPath(input, ref);
+  if (!sourceRefLoose(ref)) return undefined;
+  for (const prefix of Object.values(PACKET_LABELS)) {
+    const v = getPath(input, `${prefix}.${ref}`);
+    if (v !== undefined) return v;
+  }
+  return undefined;
+}
+
 function atomic(value) { return value === null || ["string", "number", "boolean"].includes(typeof value); }
 function same(left, right) {
   if (JSON.stringify(left) === JSON.stringify(right)) return true;
@@ -271,11 +326,30 @@ function auditEvidence(reviews, input) {
 function traceRecords(records, label, input, errors, { min, max, condition = false } = {}) {
   if (!Array.isArray(records)) return errors.push(`${label} must be an array`);
   if (records.length < min || records.length > max) errors.push(`${label} must contain ${min}-${max} entries`);
+  // Valuation reference docs (validity_basis, falsification_conditions) accept
+  // bare paths; the strict prefix check stays for evidence_records.
+  const loose = label === "validity_basis" || label === "falsification_conditions";
   for (const item of records) {
     if (!text(item?.[condition ? "condition" : "claim"])) errors.push(`${label} entry missing ${condition ? "condition" : "claim"}`);
-    if (!sourceRef(item?.source_ref)) errors.push(`${label}.source_ref must use a full input path`);
-    else if (getPath(input, item.source_ref) === undefined) errors.push(`${label}.source_ref cannot be resolved against the input`);
-    else if (!atomic(item.source_value) || !same(getPath(input, item.source_ref), item.source_value)) errors.push(`${label}.source_value does not verbatim copy an atomic input value`);
+    const refOk = loose ? sourceRefLoose(item?.source_ref) : sourceRef(item?.source_ref);
+    if (!refOk) errors.push(`${label}.source_ref must use a full input path`);
+    else {
+      const resolved = resolveRef(input, item.source_ref);
+      if (resolved === undefined) errors.push(`${label}.source_ref cannot be resolved against the input`);
+      else {
+        // source_value must verbatim match the input at source_ref. Atomic types
+        // (string/number/boolean/null) use atomic + same(); arrays/objects use deep
+        // JSON equality so the LLM can cite an unknown field's current value (e.g.
+        // `financialPacket.unknowns`) as a falsification anchor.
+        if (atomic(item.source_value)) {
+          if (!same(resolved, item.source_value)) errors.push(`${label}.source_value does not verbatim copy an atomic input value`);
+        } else if (isObject(item.source_value) || Array.isArray(item.source_value)) {
+          if (JSON.stringify(resolved) !== JSON.stringify(item.source_value)) errors.push(`${label}.source_value does not verbatim copy the input value at source_ref`);
+        } else {
+          errors.push(`${label}.source_value must be an atomic value, array, or object`);
+        }
+      }
+    }
     if (!text(item?.period) || !text(item?.unit)) errors.push(`${label} entry missing period or unit`);
     if (condition && !["rerun_required", "conclusion_invalidated"].includes(item?.action)) errors.push(`${label}.action is invalid`);
   }
@@ -327,7 +401,23 @@ function mergeRow(row, index) {
   if (!new Set(["insufficient_margin_of_safety", "evidence_insufficient", "eligible_for_manual_deep_research"]).has(val.judgment_state)) errors.push("judgment_state is invalid");
   traceRecords(val.validity_basis, "validity_basis", input, errors, { min: 2, max: 3 });
   traceRecords(val.falsification_conditions, "falsification_conditions", input, errors, { min: 2, max: 4, condition: true });
-  const basisRefs = new Set((val.validity_basis ?? []).map((item) => item?.source_ref));
+  // Map bare source_refs (e.g. "marketSnapshot.price") to their full prefix by
+  // looking up the actual input value. Then the hard checks below can match the
+  // canonical full-path form. The original LLM output is preserved as-is in the
+  // row, only the check uses the resolved form.
+  const basisRefs = new Set(
+    (val.validity_basis ?? []).map((item) => {
+      const ref = item?.source_ref;
+      if (typeof ref !== "string") return ref;
+      if (sourceRef(ref)) return ref;
+      // Try each packet prefix until one resolves to a non-undefined value.
+      for (const prefix of Object.values(PACKET_LABELS)) {
+        const candidate = `${prefix}.${ref}`;
+        if (getPath(input, candidate) !== undefined) return candidate;
+      }
+      return ref;
+    })
+  );
   if (![...basisRefs].some((ref) => /^financialPacket\.marketSnapshot\.(price|asOf)$/.test(ref))) errors.push("validity_basis must reference price or price timestamp");
   if (![...basisRefs].some((ref) => /^(identityPacket\.(fiscalPeriod|dataAsOf)|financialPacket\.latestOperatingUpdate\.periodEnd|financialPacket\.annualHistory\.fiscalYearEnd\[\d+\])$/.test(ref))) errors.push("validity_basis must reference fiscal period or data-as-of date");
 

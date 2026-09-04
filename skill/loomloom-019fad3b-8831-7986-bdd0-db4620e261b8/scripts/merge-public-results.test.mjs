@@ -396,3 +396,39 @@ test("escapes HTML tags in report summaries", () => {
   assert.ok(markdown.includes("&lt;script&gt;"));
   assert.ok(!markdown.includes("<script>alert"));
 });
+
+// cogfoundry TemplateSpec input shape: outer.tickerPacket holds the three packets
+// joined as newline-separated JSON strings, in identityPacket -> financialPacket ->
+// qualitativePacket order. parseInput must reassemble them so evidence audit can
+// match source_refs like "financialPacket.marketSnapshot.price".
+test("accepts cogfoundry tickerPacket newline-joined input shape", () => {
+  const joined = [
+    JSON.stringify(input.identityPacket),
+    JSON.stringify(input.financialPacket),
+    JSON.stringify(input.qualitativePacket),
+  ].join("\n");
+  const p = payload();
+  p.rows[0].inputJson = JSON.stringify({ tickerPacket: joined });
+  const report = mergeResults(p);
+  assert.equal(report.rows[0].valid, true, `expected valid, got errors: ${JSON.stringify(report.rows[0].errors)}`);
+  assert.equal(report.rows[0].ticker, "AAPL");
+  assert.equal(report.rows[0].price, 200);
+  assert.equal(report.rows[0].verified_evidence.length, 4);
+});
+
+// cogfoundry input shape where each newline-separated segment is one packet directly
+// (not wrapped in {identityPacket, financialPacket, qualitativePacket}).
+test("accepts cogfoundry tickerPacket with three bare JSON segments", () => {
+  const p = payload();
+  p.rows[0].inputJson = JSON.stringify({
+    tickerPacket: [
+      JSON.stringify(input.identityPacket),
+      JSON.stringify(input.financialPacket),
+      JSON.stringify(input.qualitativePacket),
+    ].join("\n"),
+  });
+  const report = mergeResults(p);
+  assert.equal(report.rows[0].valid, true, `expected valid, got errors: ${JSON.stringify(report.rows[0].errors)}`);
+  assert.equal(report.rows[0].ticker, "AAPL");
+  assert.equal(report.rows[0].verified_evidence.length, 4);
+});
