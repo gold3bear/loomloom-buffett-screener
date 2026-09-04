@@ -306,9 +306,45 @@
       *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
       .reveal { opacity: 1; transform: none; }
     }
+
+    .risk-banner {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 18px;
+      margin: 14px auto 0;
+      width: var(--page);
+      border: 1px solid rgba(255, 133, 133, .55);
+      border-radius: 14px;
+      background: rgba(255, 133, 133, .08);
+      color: var(--white);
+      font-size: 13px;
+      line-height: 1.55;
+      letter-spacing: -.005em;
+    }
+    .risk-banner .kicker {
+      flex: 0 0 auto;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: rgba(255, 133, 133, .15);
+      color: var(--danger);
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .risk-banner b { color: var(--white); font-weight: 700; }
+    @media (max-width: 720px) {
+      .risk-banner { flex-direction: column; align-items: flex-start; }
+    }
   </style>
 </head>
 <body>
+  <aside class="risk-banner" role="note" aria-label="Risk disclaimer">
+    <span class="kicker">Not investment advice</span>
+    <span><b>This project does not constitute investment, legal, tax, or accounting advice.</b> It is a research aid only. The Skill does not recommend buying, selling, or holding any security, does not issue target prices or position sizes, and does not weigh in on whether any individual investor should act on the output. Past performance is not indicative of future results. You are responsible for your own investment decisions and should consult a licensed professional before acting on anything the Skill produces.</span>
+  </aside>
+
   <header class="nav shell">
     <div class="nav-inner">
       <a href="#top" class="brand" aria-label="LoomLoom US Equity Value Screening">
@@ -397,7 +433,10 @@
     </section>
   </main>
 
-  <footer class="footer shell"><span>LoomLoom · US Equity Long-Term Value Batch Screening · Buffett four filters</span><span>Research aid only. Not investment advice. No target prices, position sizes, or buy/sell instructions.</span></footer>
+  <footer class="footer shell">
+    <span><strong>Not investment advice.</strong> This project does not constitute investment, legal, tax, or accounting advice. Research aid only — no target prices, no position sizes, no buy / sell / hold instructions.</span>
+    <span>LoomLoom · US Equity Long-Term Value Batch Screening · Buffett four filters</span>
+  </footer>
 
   <script>
     const motionReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;

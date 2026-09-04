@@ -1,9 +1,14 @@
 # LoomLoom US Equity Long-Term Value Batch Screening
 
-> **Research aid only. Not investment advice.** The Skill never outputs target
-> prices, position sizes, or buy/sell instructions. Every output is a research
-> summary with a deterministic decision tier that the human reader is
-> expected to interrogate against the underlying SEC filings.
+> ## ⚠️ NOT INVESTMENT ADVICE
+>
+> **This project does not constitute investment, legal, tax, or accounting advice.**
+> It is a research aid only. The Skill does not recommend buying, selling, or
+> holding any security, does not issue target prices or position sizes, and does
+> not weigh in on whether any individual investor should act on the output.
+> Past performance is not indicative of future results. You are responsible for
+> your own investment decisions and should consult a licensed professional
+> before acting on anything the Skill produces.
 
 A Skill for local Agents (Codex / Claude Code / WorkBuddy / etc.) that
 performs batch long-term value screening of US equities through
