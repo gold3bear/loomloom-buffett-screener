@@ -1,0 +1,198 @@
+{
+  "meta": {
+    "name": "Buffett Four-Filters US Equity Screening",
+    "description": "Parallel research screening of one US equity using Warren Buffett's four filters — circle of competence, durable competitive advantage (moat), able and trustworthy management, and attractive price with margin of safety — plus a modern financial-quality supplement. Each ticker is one row; the cloud runs four parallel reviews; the local Skill applies evidence audit, hard vetos, deterministic ranking, and an auditable Markdown report. Research aid only — not investment advice. The Skill never produces target prices, position sizes, or buy/sell instructions.",
+    "primary_output_type": "text"
+  },
+  "template_inputs": {
+    "tickerPacket": {
+      "kind": "value",
+      "value_type": "string",
+      "required": true,
+      "blank_policy": "error",
+      "constraints": {
+        "min_length": 100,
+        "max_length": 80000
+      },
+      "presentation": {
+        "label": "Ticker data packet (JSON string)",
+        "description": "Three JSON-encoded packets concatenated as one string: identityPacket, financialPacket, qualitativePacket. The local Skill's preflight validates freshness, HTTPS sources, and unit consistency before this template is invoked.",
+        "widget": "textarea",
+        "order": 10
+      }
+    },
+    "modelChoice": {
+      "kind": "value",
+      "value_type": "string",
+      "required": false,
+      "blankPolicy": "omit",
+      "presentation": {
+        "label": "Override model (optional; leave blank for default)",
+        "description": "Pick a specific model from this Listing's eligible set, or leave blank to use the server's current default.",
+        "widget": "text",
+        "order": 20
+      }
+    }
+  },
+  "steps": [
+    {
+      "step_id": "stp_business",
+      "display_name": "Business model & circle of competence review",
+      "execution_binding": {
+        "kind": "capabilityProfile",
+        "profile_id": "text.basic.openai-chat.v1"
+      },
+      "input_bindings": {
+        "prompt": {
+          "source": "composeValue",
+          "compose": {
+            "kind": "concat",
+            "separator": "\n\n",
+            "parts": [
+              {
+                "source": "literal",
+                "literal": "You are auditing one US equity under Warren Buffett's first filter — Circle of Competence and the underlying business model. Work strictly from the tickerPacket JSON supplied. Every claim must trace back to a field in the packet.\n\nINPUT (tickerPacket JSON):"
+              },
+              {
+                "source": "templateInput",
+                "input_key": "tickerPacket"
+              },
+              {
+                "source": "literal",
+                "literal": "OUTPUT SCHEMA — emit ONLY a single JSON object wrapped in ```json ... ``` fences. No prose outside the fence. Keys and types must match exactly. Missing fields are not allowed.\n\n{\n  \"dimension\": \"business\",\n  \"business_model_score\": <integer 0-100>,\n  \"understandability_score\": <integer 0-100>,\n  \"circle_of_competence\": <\"pass\" | \"uncertain\" | \"fail\">,\n  \"summary\": \"<one-paragraph verdict>\",\n  \"positive_points\": [\"<atomic fact, not opinion>\", ...],\n  \"contrary_points\": [\"<atomic fact, not opinion>\", ...],\n  \"unknowns\": [\"<what you could not verify>\", ...],\n  \"evidence_records\": [\n    {\"claim\": \"<text>\", \"source_ref\": \"<full path like identityPacket.companyName or financialPacket.marketSnapshot.pe>\", \"source_value\": <verbatim value from the packet>, \"period\": \"<FY2025 or YYYY-MM-DD>\", \"unit\": \"<USD or text or %>\"}\n  ]\n}\n\nSCORING GUIDE\n- business_model_score: 0-100 reflecting durability and clarity of the business model.\n- understandability_score: 0-100 for whether a normal investor can explain how the company makes money in one paragraph.\n- circle_of_competence: pass if the business is intelligible and inside typical investor understanding; uncertain if it is complex; fail if opaque or off-circle.\n\nDISCIPLINE\n- Every source_ref MUST be a complete public path that resolves inside the supplied tickerPacket.\n- Every source_value MUST be the exact value at that path. Arrays, objects, and recomputed summaries are NOT atomic evidence.\n- DO NOT emit target prices, future share prices, forecast growth, forecast margins, discount rates, terminal multiples, or probabilities. If a field would require such a number, write it as a forbidden_numeric_claim or leave it out.\n- If you cannot verify something, write it to unknowns, not to evidence_records."
+              }
+            ]
+          }
+        }
+      },
+      "modelSelection": {
+        "source": "templateInput",
+        "inputKey": "modelChoice",
+        "defaultModelId": "deepseek/deepseek-v4-flash"
+      }
+    },
+    {
+      "step_id": "stp_management",
+      "display_name": "Moat & management review",
+      "execution_binding": {
+        "kind": "capabilityProfile",
+        "profile_id": "text.basic.openai-chat.v1"
+      },
+      "input_bindings": {
+        "prompt": {
+          "source": "composeValue",
+          "compose": {
+            "kind": "concat",
+            "separator": "\n\n",
+            "parts": [
+              {
+                "source": "literal",
+                "literal": "You are auditing one US equity under Warren Buffett's second and third filters — Durable Competitive Advantage (moat) and Able & Trustworthy Management. Work strictly from the tickerPacket JSON supplied. Every claim must trace back to a field in the packet.\n\nINPUT (tickerPacket JSON):"
+              },
+              {
+                "source": "templateInput",
+                "input_key": "tickerPacket"
+              },
+              {
+                "source": "literal",
+                "literal": "OUTPUT SCHEMA — emit ONLY a single JSON object wrapped in ```json ... ``` fences. No prose outside the fence. Keys and types must match exactly. Missing fields are not allowed.\n\n{\n  \"dimension\": \"moat\",\n  \"moat_score\": <integer 0-100>,\n  \"management_culture_score\": <integer 0-100>,\n  \"capital_allocation_score\": <integer 0-100>,\n  \"summary\": \"<one-paragraph verdict on moat and management>\",\n  \"positive_points\": [\"<atomic fact>\", ...],\n  \"contrary_points\": [\"<atomic fact>\", ...],\n  \"governance_red_flags\": [\"<atomic fact — specific event, not generic concern>\", ...],\n  \"unknowns\": [\"<what you could not verify>\", ...],\n  \"evidence_records\": [\n    {\"claim\": \"<text>\", \"source_ref\": \"<full path like qualitativePacket.moatEvidence[0].fact>\", \"source_value\": <verbatim value from the packet>, \"period\": \"<FY2025 or YYYY-MM-DD>\", \"unit\": \"<USD or text>\", \"sourceType\": \"<SEC filing or 10-K or 10-Q>\"}\n  ]\n}\n\nSCORING GUIDE\n- moat_score: 0-100 for structural pricing power, switching cost, network effect, scale, or brand durability. Buffett's most decisive filter.\n- management_culture_score: 0-100 for honesty, competence, owner-mindset, and track record.\n- capital_allocation_score: 0-100 for shareholder-friendly buybacks, dividends, M&A discipline, and avoidance of value-destroying acquisitions.\n\nDISCIPLINE\n- source_ref MUST be a complete public path resolvable inside the supplied tickerPacket.\n- source_value MUST be the exact value at that path. Arrays, objects, and recomputed summaries are NOT atomic evidence.\n- governance_red_flags must be specific events (e.g. a restatement, a related-party transaction), not generic risks.\n- DO NOT emit target prices, future share prices, forecast growth, forecast margins, discount rates, or terminal multiples. If a field would require such a number, omit it."
+              }
+            ]
+          }
+        }
+      },
+      "modelSelection": {
+        "source": "templateInput",
+        "inputKey": "modelChoice",
+        "defaultModelId": "deepseek/deepseek-v4-flash"
+      }
+    },
+    {
+      "step_id": "stp_financial",
+      "display_name": "Financial quality review",
+      "execution_binding": {
+        "kind": "capabilityProfile",
+        "profile_id": "text.basic.openai-chat.v1"
+      },
+      "input_bindings": {
+        "prompt": {
+          "source": "composeValue",
+          "compose": {
+            "kind": "concat",
+            "separator": "\n\n",
+            "parts": [
+              {
+                "source": "literal",
+                "literal": "You are auditing one US equity's Financial Quality — the modern supplement to Buffett's four filters. Focus on capital returns, free cash flow generation, balance sheet strength, and accounting integrity. Work strictly from the tickerPacket JSON supplied.\n\nINPUT (tickerPacket JSON):"
+              },
+              {
+                "source": "templateInput",
+                "input_key": "tickerPacket"
+              },
+              {
+                "source": "literal",
+                "literal": "OUTPUT SCHEMA — emit ONLY a single JSON object wrapped in ```json ... ``` fences. No prose outside the fence. Keys and types must match exactly. Missing fields are not allowed.\n\n{\n  \"dimension\": \"financial\",\n  \"financial_quality_score\": <integer 0-100>,\n  \"cash_flow_quality_score\": <integer 0-100>,\n  \"balance_sheet_score\": <integer 0-100>,\n  \"summary\": \"<one-paragraph verdict>\",\n  \"positive_points\": [\"<atomic fact>\", ...],\n  \"contrary_points\": [\"<atomic fact>\", ...],\n  \"accounting_red_flags\": [\"<atomic fact — specific event>\", ...],\n  \"survival_risks\": [\"<atomic fact — current concrete risk>\", ...],\n  \"unknowns\": [\"<what you could not verify>\", ...],\n  \"evidence_records\": [\n    {\"claim\": \"<text>\", \"source_ref\": \"<full path like financialPacket.annualHistory.freeCashFlow>\", \"source_value\": <verbatim value from the packet>, \"period\": \"<FY2025 or YYYY-MM-DD>\", \"unit\": \"<USD millions or %>\"}\n  ]\n}\n\nSCORING GUIDE\n- financial_quality_score: 0-100 for combined ROIC, margin stability, and earnings quality.\n- cash_flow_quality_score: 0-100 for free cash flow conversion relative to net income and capex coverage.\n- balance_sheet_score: 0-100 for cash to debt, lease obligations vs EBITDA, and shareholder dilution. A score below 30 is treated as 'weak balance sheet' by the local Skill.\n\nDISCIPLINE\n- source_ref MUST be a complete public path resolvable inside the supplied tickerPacket.\n- source_value MUST be the exact value at that path. Arrays, objects, and recomputed summaries are NOT atomic evidence.\n- accounting_red_flags must be specific events, not generic concerns.\n- DO NOT emit target prices, future share prices, forecast growth, forecast margins, discount rates, or terminal multiples."
+              }
+            ]
+          }
+        }
+      },
+      "modelSelection": {
+        "source": "templateInput",
+        "inputKey": "modelChoice",
+        "defaultModelId": "deepseek/deepseek-v4-flash"
+      }
+    },
+    {
+      "step_id": "stp_valuation",
+      "display_name": "Valuation & margin of safety review",
+      "execution_binding": {
+        "kind": "capabilityProfile",
+        "profile_id": "text.basic.openai-chat.v1"
+      },
+      "input_bindings": {
+        "prompt": {
+          "source": "composeValue",
+          "compose": {
+            "kind": "concat",
+            "separator": "\n\n",
+            "parts": [
+              {
+                "source": "literal",
+                "literal": "You are auditing one US equity's Valuation with Margin of Safety — Buffett's fourth filter. Price judgment must bind to a price timestamp AND a fiscal period. Output the validity_basis (one price/time reference and one period reference) and 2-4 falsification conditions, each with a rerun/conclusion_invalidated action. Work strictly from the tickerPacket JSON supplied.\n\nINPUT (tickerPacket JSON):"
+              },
+              {
+                "source": "templateInput",
+                "input_key": "tickerPacket"
+              },
+              {
+                "source": "literal",
+                "literal": "OUTPUT SCHEMA — emit ONLY a single JSON object wrapped in ```json ... ``` fences. No prose outside the fence. Keys and types must match exactly. Missing fields are not allowed.\n\n{\n  \"dimension\": \"valuation\",\n  \"valuation_score\": <integer 0-100>,\n  \"margin_of_safety_score\": <integer 0-100>,\n  \"judgment_state\": <\"insufficient_margin_of_safety\" | \"evidence_insufficient\" | \"eligible_for_manual_deep_research\">,\n  \"summary\": \"<one-paragraph verdict>\",\n  \"positive_points\": [\"<atomic fact>\", ...],\n  \"contrary_points\": [\"<atomic fact>\", ...],\n  \"valuation_red_flags\": [\"<atomic fact>\", ...],\n  \"forbidden_numeric_claims\": [\"<claim we deliberately avoid making>\", ...],\n  \"unknowns\": [\"<what you could not verify — especially normalized owner earnings or historical valuation range>\", ...],\n  \"validity_basis\": [\n    {\"claim\": \"<one binds to price or price timestamp>\", \"source_ref\": \"financialPacket.marketSnapshot.price or financialPacket.marketSnapshot.asOf\", \"source_value\": <verbatim value>, \"period\": \"<YYYY-MM-DD>\", \"unit\": \"<USD or text>\"},\n    {\"claim\": \"<one binds to fiscal period or data-as-of date>\", \"source_ref\": \"identityPacket.fiscalPeriod or identityPacket.dataAsOf or financialPacket.annualHistory.fiscalYearEnd[0]\", \"source_value\": <verbatim value>, \"period\": \"<FY2025 or YYYY-MM-DD>\", \"unit\": \"<text>\"}\n  ],\n  \"falsification_conditions\": [\n    {\"condition\": \"<what new fact would invalidate this verdict>\", \"source_ref\": \"<full path>\", \"source_value\": <verbatim value>, \"period\": \"<YYYY-MM-DD or FY2025>\", \"unit\": \"<USD or text>\", \"action\": \"<rerun_required | conclusion_invalidated>\"},\n    {\"condition\": \"<second falsifier>\", \"source_ref\": \"<full path>\", \"source_value\": <verbatim value>, \"period\": \"<YYYY-MM-DD or FY2025>\", \"unit\": \"<USD or text>\", \"action\": \"<rerun_required | conclusion_invalidated>\"}\n  ],\n  \"evidence_records\": [\n    {\"claim\": \"<text>\", \"source_ref\": \"<full path>\", \"source_value\": <verbatim value>, \"period\": \"<YYYY-MM-DD or FY2025>\", \"unit\": \"<USD or %>\"}\n  ]\n}\n\nSCORING GUIDE\n- valuation_score: 0-100 for whether the current price is reasonable vs. owner earnings, peer history, and a stated opportunity cost.\n- margin_of_safety_score: 0-100 for distance between price and a defensible intrinsic value anchor. A score below 30 triggers a local hard veto.\n- judgment_state: use 'eligible_for_manual_deep_research' only when both valuation_score and margin_of_safety_score are 60 or above AND no red flag fires; otherwise 'insufficient_margin_of_safety' or 'evidence_insufficient'.\n\nDISCIPLINE\n- validity_basis MUST include exactly one price/price-time reference and one period/date reference.\n- falsification_conditions MUST each carry a 'rerun_required' or 'conclusion_invalidated' action.\n- If normalized owner earnings or a historical valuation range is not in the packet, the margin_of_safety_score must NOT exceed 50 and judgment_state MUST be 'evidence_insufficient'.\n- source_ref MUST be a complete public path resolvable inside the supplied tickerPacket.\n- source_value MUST be the exact value at that path.\n- DO NOT emit target prices, future share prices, forecast growth, forecast margins, discount rates, terminal multiples, or probabilities. If you feel the urge, write it to forbidden_numeric_claims and move on."
+              }
+            ]
+          }
+        }
+      },
+      "modelSelection": {
+        "source": "templateInput",
+        "inputKey": "modelChoice",
+        "defaultModelId": "deepseek/deepseek-v4-flash"
+      }
+    }
+  ],
+  "workbook": {
+    "instructions": [
+      "One US equity per row. Supply a JSON string in tickerPacket containing the three Skill packets: identityPacket, financialPacket, qualitativePacket. The local Skill's preflight must pass before this template is invoked.",
+      "Four parallel reviews run per row: business model & circle of competence, moat & management, financial quality, valuation with margin of safety. Each review emits a JSON object inside ```json ... ``` fences.",
+      "The local Skill applies evidence audit (source_ref must resolve into the input, source_value must match the atomic value), hard vetos (9 rules), deterministic ranking, and an auditable Markdown report.",
+      "Research aid only. The Skill never produces target prices, position sizes, or buy/sell instructions."
+    ],
+    "sample_rows": [
+      {
+        "values": {
+          "tickerPacket": "{\"identityPacket\":{\"ticker\":\"AAPL\",\"companyName\":\"Apple Inc.\",\"industry\":\"Technology Hardware\",\"dataAsOf\":\"2026-09-01\",\"fiscalPeriod\":\"FY2025\",\"sources\":[\"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193\"]},\"financialPacket\":{\"marketSnapshot\":{\"price\":220.5,\"currency\":\"USD\",\"asOf\":\"2026-09-01\",\"pe\":28.4},\"annualHistory\":{\"fiscalYearEnd\":[\"2023-09-30\",\"2024-09-28\",\"2025-09-27\"],\"revenue\":[383285,391035,416161],\"netIncome\":[96995,93736,112010],\"freeCashFlow\":[99584,108807,98767]},\"unknowns\":[]},\"qualitativePacket\":{\"businessModel\":[{\"fact\":\"Apple sells iPhones, Macs, services and wearables\",\"source\":\"https://www.apple.com/investor/\",\"date\":\"2026-09-01\"}],\"moatEvidence\":[{\"fact\":\"Brand strength; integrated hardware-software-services ecosystem\",\"source\":\"https://www.apple.com/investor/\",\"date\":\"2026-09-01\"}],\"managementCulture\":[{\"fact\":\"Tim Cook CEO since 2011; strong capital-return track record\",\"source\":\"https://www.apple.com/investor/\",\"date\":\"2026-09-01\"}],\"capitalAllocation\":[{\"fact\":\"Multi-year share buyback program; consistent dividend growth\",\"source\":\"https://www.apple.com/investor/\",\"date\":\"2026-09-01\"}],\"riskFactors\":[{\"fact\":\"Concentration in iPhone revenue; China geopolitical exposure\",\"source\":\"https://www.apple.com/investor/\",\"date\":\"2026-09-01\"}],\"contraryEvidence\":[],\"unknowns\":[]}}"
+        }
+      }
+    ]
+  }
+}
