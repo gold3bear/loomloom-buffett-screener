@@ -58,7 +58,7 @@
 
     .nav {
       width: 100%;
-      padding: 18px 0;
+      padding: 22px 0 8px;
       position: relative;
       z-index: 5;
     }
@@ -67,11 +67,11 @@
       align-items: center;
       justify-content: space-between;
       gap: 24px;
-      padding: 12px 14px 12px 18px;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      background: rgba(3, 8, 23, .58);
-      backdrop-filter: blur(16px);
+      padding: 12px 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      backdrop-filter: none;
     }
     .brand {
       display: flex;
@@ -122,9 +122,12 @@
       grid-template-columns: 1.02fr .98fr;
       align-items: center;
       gap: clamp(34px, 6vw, 88px);
-      min-height: 640px;
-      padding: 48px 0 56px;
+      min-height: 720px;
+      padding: 64px 0 78px;
+      position: relative;
     }
+    .hero::after { content: ""; position: absolute; left: 0; right: 0; bottom: 22px; height: 1px; background: linear-gradient(90deg, var(--danger), rgba(255, 133, 133, .3) 48%, transparent); box-shadow: 0 0 14px rgba(255, 82, 82, .45); }
+    .hero::before { content: ""; position: absolute; left: -6px; bottom: 18px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 14px 4px rgba(255, 82, 82, .55); }
     .eyebrow {
       display: inline-flex;
       align-items: center;
@@ -140,19 +143,13 @@
     h1 {
       max-width: 720px;
       margin: 20px 0 22px;
-      font-size: clamp(48px, 4.65vw, 72px);
-      line-height: .99;
-      letter-spacing: -.078em;
+      font-size: clamp(48px, 5.2vw, 78px);
+      line-height: .98;
+      letter-spacing: -.075em;
       text-wrap: pretty;
     }
-    h1 strong {
-      color: var(--cyan);
-      font-family: var(--mono);
-      font-size: .96em;
-      letter-spacing: -.1em;
-      text-shadow: 0 0 28px rgba(98, 226, 255, .28);
-    }
-    .hero-lead { max-width: 600px; color: #c1cee0; font-size: 18px; text-wrap: pretty; }
+    .hero-subhead { max-width: 660px; margin: 0; color: #aab9ce; font-size: clamp(17px, 1.55vw, 21px); line-height: 1.45; text-wrap: pretty; }
+    .hero-lead { max-width: 560px; margin-top: 20px; color: #8293ad; font-size: 15px; line-height: 1.55; text-wrap: pretty; }
     .hero-lead b { color: var(--white); font-weight: 720; }
     .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 31px; }
     .button-primary, .button-secondary {
@@ -171,26 +168,27 @@
       box-shadow: 0 16px 38px rgba(13, 113, 205, .28);
     }
     .hero .button-primary { display: inline-flex; align-items: center; min-height: 54px; padding: 14px 24px; font-size: 16px; box-shadow: 0 18px 42px rgba(13, 113, 205, .38), 0 0 0 4px rgba(98, 226, 255, .08); }
+    .hero .button-primary { border-color: rgba(245, 201, 101, .95); background: rgba(4, 12, 28, .72); color: var(--gold); box-shadow: 0 0 0 1px rgba(245, 201, 101, .16), 0 14px 34px rgba(0,0,0,.28); }
     .button-secondary { border: 1px solid var(--line); background: rgba(255, 255, 255, .03); color: var(--white); }
     .button-primary:hover, .button-secondary:hover { transform: translateY(-2px); }
     .button-secondary:hover { border-color: rgba(98, 226, 255, .5); background: rgba(98, 226, 255, .08); }
-    .hero-note { margin: 16px 0 0; color: #70829c; font-size: 13px; }
+    .hero-note { margin: 18px 0 0; color: #70829c; font-size: 12px; letter-spacing: .01em; }
 
-    .hero-visual { position: relative; min-height: 520px; overflow: hidden; }
+    .hero-visual { position: relative; min-height: 570px; overflow: hidden; }
     .orbit { position: absolute; border: 1px solid rgba(98, 226, 255, .16); border-radius: 50%; inset: 13% 6% 10%; transform: rotate(-23deg); }
     .orbit::after { content: ""; position: absolute; inset: 17%; border: 1px solid rgba(245, 201, 101, .15); border-radius: 50%; }
     .poster-frame {
       position: absolute;
-      inset: 0 7% 0 7%;
+      inset: 0 -3% 0 0;
       overflow: hidden;
-      border: 1px solid rgba(152, 214, 255, .34);
-      border-radius: 26px;
-      background: #040d1d;
-      box-shadow: 0 34px 80px rgba(0, 0, 0, .45), 0 0 90px rgba(21, 150, 243, .16);
-      transform: perspective(1200px) rotateY(-7deg) rotateX(2deg);
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      transform: none;
     }
-    .poster-frame::after { content: ""; position: absolute; inset: 0; background: linear-gradient(115deg, rgba(98, 226, 255, .18), transparent 31%, transparent 66%, rgba(245, 201, 101, .12)); mix-blend-mode: screen; pointer-events: none; }
-    .poster-frame img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center top; opacity: .9; }
+    .poster-frame::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, var(--ink) 0%, transparent 16%, transparent 84%, var(--ink) 100%); pointer-events: none; }
+    .poster-frame img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: right center; opacity: .96; }
     .visual-tag {
       position: absolute;
       z-index: 2;
@@ -271,8 +269,8 @@
       :root { --page: min(100% - 32px, 680px); }
       .nav-links { display: none; }
       .hero { grid-template-columns: 1fr; min-height: auto; padding-top: 48px; }
-      .hero-visual { min-height: 320px; }
-      .poster-frame { inset: 0 10% 0 4%; transform: perspective(1000px) rotateY(-4deg); }
+      .hero-visual { min-height: 360px; }
+      .poster-frame { inset: 0 -8% 0 -4%; }
       .proof-strip { grid-template-columns: 1fr 1fr; }
       .proof-cell:nth-child(3) { border-left: 0; border-top: 1px solid var(--line); }
       .proof-cell:nth-child(4) { border-top: 1px solid var(--line); }
@@ -290,7 +288,7 @@
       h1 { font-size: clamp(43px, 14vw, 62px); }
       .hero-lead { font-size: 16px; }
       .hero { gap: 28px; padding-top: 38px; }
-      .hero-visual { min-height: 268px; }
+      .hero-visual { min-height: 300px; }
       .hero-actions { margin-top: 24px; }
       .hero .button-primary { width: 100%; justify-content: center; text-align: center; }
       .visual-tag { right: 0; bottom: 5%; min-width: 142px; }
@@ -382,17 +380,18 @@
     <section class="hero shell">
       <div class="hero-copy">
         <span class="eyebrow">Buffett's four filters, run in parallel</span>
-        <h1>Winners, <strong>picked by four filters</strong><br>Circle of competence. Moat. Management. Margin of safety.</h1>
-        <p class="hero-lead">A research-aid Skill for batch long-term value screening of US equities, with hard local evidence audit, provenance-tiered sources, and three-tier valuation calibration. Built for <b>Workbuddy, Codex, Claude Code, and OpenClaw</b>.</p>
+        <h1>Winners, picked by four filters</h1>
+        <p class="hero-subhead">Circle of competence. Moat. Management. Margin of safety.</p>
+        <p class="hero-lead">A research-aid Skill that turns a long US-equity list into a defensible research queue: LoomLoom handles parallel review, while the local Agent gates evidence, provenance, and re-run conditions.</p>
         <div class="hero-actions">
           <a class="button-primary" href="https://github.com/gold3bear/loomloom-buffett-screener/releases/latest/download/loomloom-buffett-screener-v3.zip">Download Skill</a>
           <button class="button-secondary" type="button" data-scroll="workflow">See the workflow</button>
         </div>
-        <p class="hero-note">Research aid only. No target prices, no position sizes, no buy/sell instructions — every row carries a price timestamp, source URL, and falsification anchor so the human reader decides.</p>
+        <p class="hero-note">Research aid only · no target prices, position sizes, or buy/sell instructions · every row keeps a source URL, price timestamp, and falsification anchor.</p>
       </div>
       <div class="hero-visual" aria-label="Schematic showing 100 tickers filtered by cloud review and local validation into a research shortlist">
         <div class="orbit"></div>
-        <div class="poster-frame"><img src="loomloom-us-value-screening-poster-v1.png" alt="LoomLoom US equity value screening poster"></div>
+        <div class="poster-frame"><img src="loomloom-four-filters-hero-v2.png" alt="Four translucent value-investing data filters: magnifying glass, fortress, chess king, and balance scale"></div>
         <div class="visual-tag"><span>RESEARCH PRIORITY</span><b>Not a buy signal</b></div>
       </div>
     </section>
