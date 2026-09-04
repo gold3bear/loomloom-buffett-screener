@@ -334,15 +334,34 @@
       text-transform: uppercase;
     }
     .risk-banner b { color: var(--white); font-weight: 700; }
+    .risk-banner .close {
+      flex: 0 0 auto;
+      appearance: none;
+      background: transparent;
+      border: 1px solid rgba(255, 133, 133, .35);
+      border-radius: 8px;
+      color: var(--danger);
+      width: 28px;
+      height: 28px;
+      line-height: 1;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0;
+      margin-left: 4px;
+    }
+    .risk-banner .close:hover { background: rgba(255, 133, 133, .18); color: var(--white); }
+    .risk-banner .close:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; }
+    .risk-banner[hidden] { display: none !important; }
     @media (max-width: 720px) {
       .risk-banner { flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>
 <body>
-  <aside class="risk-banner" role="note" aria-label="Risk disclaimer">
+  <aside class="risk-banner" role="note" aria-label="Risk disclaimer" data-risk-banner>
     <span class="kicker">Not investment advice</span>
     <span><b>This project does not constitute investment, legal, tax, or accounting advice.</b> It is a research aid only. The Skill does not recommend buying, selling, or holding any security, does not issue target prices or position sizes, and does not weigh in on whether any individual investor should act on the output. Past performance is not indicative of future results. You are responsible for your own investment decisions and should consult a licensed professional before acting on anything the Skill produces.</span>
+    <button class="close" type="button" aria-label="Dismiss risk disclaimer" data-risk-dismiss>×</button>
   </aside>
 
   <header class="nav shell">
@@ -462,6 +481,17 @@
       entries.forEach((entry) => { if (entry.isIntersecting) { entry.target.classList.add('is-visible'); reveal.unobserve(entry.target); } });
     }, { threshold: 0.18 });
     document.querySelectorAll('.reveal').forEach((el) => reveal.observe(el));
+
+    // Risk disclaimer dismiss: clicking the X hides the banner for this session.
+    // We do not persist the dismissal to localStorage on purpose — the user
+    // is expected to see the banner on every fresh page load.
+    const riskBanner = document.querySelector('[data-risk-banner]');
+    const riskDismiss = document.querySelector('[data-risk-dismiss]');
+    if (riskBanner && riskDismiss) {
+      riskDismiss.addEventListener('click', () => {
+        riskBanner.hidden = true;
+      });
+    }
   </script>
 </body>
 </html>
