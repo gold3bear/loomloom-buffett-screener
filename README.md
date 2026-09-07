@@ -224,6 +224,46 @@ Key results:
 
 Total out-of-pocket cost across the validation runs: **USD 1.44**.
 
+## Sample Output
+
+The three screenshots below come straight from the validation runs — a
+`Watchlist` decision card, the audit log, and the one rejection case.
+Every number on every card byte-matches the input packet or the cited
+10-K page; the local audit enforces that before the report is emitted.
+
+### NVDA — Watchlist (`evidence_thin`)
+
+![NVDA 4-pillar decision card](docs/images/nvda-decision-card.png)
+
+> High quality on every dimension (CUDA moat, 71.1% gross margin,
+> $96.6B FCF), but the 28.7× trailing P/E is not demonstrably cheap and
+> the packet does not supply normalized owner earnings. The Skill
+> refuses to print **BUY** or **SELL** without a margin-of-safety
+> anchor — it surfaces `evidence_thin → Watchlist` and lists the three
+> things a human needs to verify (owner earnings, historical P/E range,
+> Q2 segment split).
+
+### Evidence audit log
+
+![Evidence audit log](docs/images/evidence-audit-log.png)
+
+> Every row traces a claim back to its source packet. Verified
+> `172 / 172` evidence items across the 8-ticker batch, `0` rejected
+> claims, `0` hallucination. The Skill does not infer values that are
+> not in the packet; if a row fails the byte-match audit, the score is
+> downgraded and the claim goes to `unknowns`.
+
+### INTC — Locally rejected (3 hard vetoes)
+
+![INTC rejection card](docs/images/intc-rejection.png)
+
+> `locally_rejected` does **not** mean INTC is uninvestable. It means
+> the supplied packet failed three atomic gates: balance-sheet score
+> 22/100, margin-of-safety score 18/100, and only 9 of 18 required
+> evidence items for a semiconductor issuer. The Skill lists the three
+> specific gaps a human should fill (CHIPS Act NPV, foundry turnaround,
+> 18A node economics) and stops.
+
 ## Repository Layout
 
 ```text
@@ -231,6 +271,7 @@ README.md                                                          This file
 LICENSE                                                            MIT
 index.html                                                         Static product page
 docs/                                                              Page assets + English tutorial
+  images/                                                          Sample-output screenshots used in README
 skill/
   loomloom-019fad3b-8831-7986-bdd0-db4620e261b8/                    The Skill (reviewable)
     SKILL.md                                                       Authoritative contract for the local Agent
