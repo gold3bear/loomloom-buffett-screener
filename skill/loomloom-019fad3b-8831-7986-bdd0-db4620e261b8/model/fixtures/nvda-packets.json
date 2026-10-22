@@ -1,0 +1,178 @@
+{
+  "identityPacket": {
+    "ticker": "NVDA",
+    "companyName": "NVIDIA Corporation",
+    "industry": "Semiconductors & AI Accelerators",
+    "dataAsOf": "2026-10-22",
+    "fiscalPeriod": "FY2026",
+    "sources": [
+      "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-K",
+      "https://investor.nvidia.com/financial-info/financial-reports/default.aspx"
+    ]
+  },
+  "financialPacket": {
+    "units": "USD millions",
+    "marketSnapshot": {
+      "price": 221.97,
+      "currency": "USD",
+      "asOf": "2026-10-21T20:00:00Z",
+      "pe": 44.9,
+      "marketCapUsd": 5393871.0,
+      "sharesOutstanding": 24300
+    },
+    "annualHistory": {
+      "fiscalYearEnd": [
+        "2024-01-28",
+        "2025-01-26",
+        "2026-01-25"
+      ],
+      "revenue": [
+        60922,
+        130497,
+        215938
+      ],
+      "netIncome": [
+        29760,
+        72880,
+        120067
+      ],
+      "freeCashFlow": [
+        27021,
+        60853,
+        96676
+      ]
+    },
+    "balanceSheet": {
+      "cash": 10605,
+      "currentAssets": 125605,
+      "currentLiabilities": 32163,
+      "shortTermDebt": 999,
+      "longTermDebt": 7469,
+      "totalDebt": 8468,
+      "netWorkingCapital": 28705,
+      "netPPE": 10383,
+      "otherAssets": 157110,
+      "totalAssets": 206803,
+      "totalLiabilities": 49510,
+      "otherLiabilities": 41042,
+      "equity": 157293,
+      "sharesOutstanding": 24300
+    },
+    "unknowns": [
+      "FY2027 quarterly data not included; the model uses the FY2026 annual base."
+    ]
+  },
+  "qualitativePacket": {
+    "businessModel": [
+      {
+        "fact": "NVIDIA designs accelerated computing platforms, including data-center GPUs, networking, gaming GPUs and software.",
+        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-K",
+        "date": "2026-02-25",
+        "sourceType": "10-K FY2026",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "Data Center is NVIDIA's largest revenue platform.",
+        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-K",
+        "date": "2026-02-25",
+        "sourceType": "10-K FY2026",
+        "sourceTier": "S"
+      }
+    ],
+    "moatEvidence": [
+      {
+        "fact": "CUDA and NVIDIA's installed developer ecosystem create switching costs for accelerated computing workloads.",
+        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-K",
+        "date": "2026-02-25",
+        "sourceType": "10-K FY2026",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "NVIDIA's scale and product cadence support a performance lead in AI accelerators and networking.",
+        "source": "https://investor.nvidia.com/financial-info/financial-reports/default.aspx",
+        "date": "2026-02-25",
+        "sourceType": "Company IR",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "The combination of GPUs, networking and system software is sold as an integrated platform.",
+        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-K",
+        "date": "2026-02-25",
+        "sourceType": "10-K FY2026",
+        "sourceTier": "S"
+      }
+    ],
+    "managementCulture": [
+      {
+        "fact": "Jensen Huang co-founded NVIDIA and has served as chief executive officer since 1993.",
+        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-K",
+        "date": "2026-02-25",
+        "sourceType": "10-K FY2026",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "NVIDIA's board includes independent directors and a lead independent director.",
+        "source": "https://investor.nvidia.com/corporate-governance/board-of-directors/default.aspx",
+        "date": "2026-10-22",
+        "sourceType": "Company IR",
+        "sourceTier": "S"
+      }
+    ],
+    "capitalAllocation": [
+      {
+        "fact": "NVIDIA returns capital to shareholders through dividends and share repurchases.",
+        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-K",
+        "date": "2026-02-25",
+        "sourceType": "10-K FY2026",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "NVIDIA funds a large share of research and development from operating cash flow.",
+        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-K",
+        "date": "2026-02-25",
+        "sourceType": "10-K FY2026",
+        "sourceTier": "S"
+      }
+    ],
+    "riskFactors": [
+      {
+        "fact": "NVIDIA depends on third-party foundries and suppliers, including TSMC, for manufacturing.",
+        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-K",
+        "date": "2026-02-25",
+        "sourceType": "10-K FY2026",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "A limited number of customers account for a significant portion of revenue.",
+        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-K",
+        "date": "2026-02-25",
+        "sourceType": "10-K FY2026",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "U.S. export controls restrict sales of certain products to China and other markets.",
+        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-K",
+        "date": "2026-02-25",
+        "sourceType": "10-K FY2026",
+        "sourceTier": "S"
+      }
+    ],
+    "contraryEvidence": [
+      {
+        "fact": "AI infrastructure spending is cyclical and can decelerate faster than consensus expects.",
+        "source": "https://investor.nvidia.com/financial-info/financial-reports/default.aspx",
+        "date": "2026-10-22",
+        "sourceType": "Analyst/user note",
+        "sourceTier": "B"
+      },
+      {
+        "fact": "Competition from custom accelerators and other GPU vendors could pressure pricing over time.",
+        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-K",
+        "date": "2026-02-25",
+        "sourceType": "10-K FY2026",
+        "sourceTier": "S"
+      }
+    ],
+    "unknowns": []
+  }
+}

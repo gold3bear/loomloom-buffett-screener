@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "loomloom-model-assumptions/v1",
+  "asOf": "2026-10-22",
+  "currency": "USD",
+  "units": "USD millions",
+  "baseScenario": "base",
+  "scenarios": {
+    "bear": {
+      "label": "Bear",
+      "years": 5,
+      "revenueGrowth": [
+        0.08,
+        0.06,
+        0.05,
+        0.04,
+        0.03
+      ],
+      "ebitMargin": [
+        0.55,
+        0.54,
+        0.53,
+        0.52,
+        0.51
+      ],
+      "taxRate": 0.15,
+      "daPctRevenue": 0.013,
+      "capexPctRevenue": 0.028,
+      "nwcPctRevenue": 0.133,
+      "interestRateOnDebt": 0.04,
+      "debtRepaymentPct": 0.05,
+      "dividendPayoutRatio": 0.01,
+      "buybackPctOfNetIncome": 0.15,
+      "wacc": 0.1,
+      "terminalMethod": "perpetuity",
+      "terminalGrowth": 0.025
+    },
+    "base": {
+      "label": "Base",
+      "years": 5,
+      "revenueGrowth": [
+        0.2,
+        0.18,
+        0.15,
+        0.12,
+        0.1
+      ],
+      "ebitMargin": [
+        0.6,
+        0.59,
+        0.58,
+        0.57,
+        0.56
+      ],
+      "taxRate": 0.15,
+      "daPctRevenue": 0.013,
+      "capexPctRevenue": 0.028,
+      "nwcPctRevenue": 0.133,
+      "interestRateOnDebt": 0.04,
+      "debtRepaymentPct": 0.05,
+      "dividendPayoutRatio": 0.01,
+      "buybackPctOfNetIncome": 0.2,
+      "wacc": 0.09,
+      "terminalMethod": "perpetuity",
+      "terminalGrowth": 0.03
+    },
+    "bull": {
+      "label": "Bull",
+      "years": 5,
+      "revenueGrowth": [
+        0.3,
+        0.25,
+        0.2,
+        0.15,
+        0.12
+      ],
+      "ebitMargin": [
+        0.62,
+        0.61,
+        0.6,
+        0.6,
+        0.59
+      ],
+      "taxRate": 0.15,
+      "daPctRevenue": 0.013,
+      "capexPctRevenue": 0.028,
+      "nwcPctRevenue": 0.133,
+      "interestRateOnDebt": 0.04,
+      "debtRepaymentPct": 0.05,
+      "dividendPayoutRatio": 0.01,
+      "buybackPctOfNetIncome": 0.2,
+      "wacc": 0.08,
+      "terminalMethod": "perpetuity",
+      "terminalGrowth": 0.035
+    }
+  },
+  "sources": [
+    {
+      "field": "scenarios.*.revenueGrowth",
+      "value": "bear 3-8% / base 10-20% / bull 12-30%",
+      "source": "user-supplied test assumptions",
+      "date": "2026-10-22"
+    },
+    {
+      "field": "scenarios.*.ebitMargin",
+      "value": "bear 51-55% / base 56-60% / bull 59-62%",
+      "source": "user-supplied test assumptions",
+      "date": "2026-10-22"
+    },
+    {
+      "field": "scenarios.*.wacc",
+      "value": "bear 10% / base 9% / bull 8%",
+      "source": "user-supplied test assumptions",
+      "date": "2026-10-22"
+    },
+    {
+      "field": "scenarios.*.terminalGrowth",
+      "value": "2.5% / 3.0% / 3.5%",
+      "source": "user-supplied test assumptions",
+      "date": "2026-10-22"
+    }
+  ],
+  "unknowns": []
+}
