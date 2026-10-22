@@ -13,3 +13,6 @@ __pycache__/
 # Local CLI install scratch (not part of the Skill)
 .npm-cache-global/
 .tools/
+
+# Release build artifacts
+release/v4/*.zip

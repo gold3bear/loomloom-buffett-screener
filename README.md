@@ -386,7 +386,7 @@ Total out-of-pocket cost across the validation runs: **USD 1.44**.
 
 The v4 model engine has its own deterministic test suite: 36 Python tests on both
 CPython 3.9 and 3.12 (including a workbook that opens in openpyxl and is
-byte-stable) plus 74 Node tests covering preflight, model merge, recomputation
+byte-stable) plus 78 Node tests covering preflight, model merge, recomputation
 vetos, reporting, and the template contract. These tests do not consume cloud
 credits.
 

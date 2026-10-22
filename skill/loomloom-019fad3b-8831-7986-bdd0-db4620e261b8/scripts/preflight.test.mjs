@@ -147,3 +147,19 @@ test("C-tier evidence blocks the row", () => {
   assert.equal(report.valid, false);
   assert.ok(report.rows[0].issues.some(({ code }) => code === "TIER_C_NOT_EVIDENCE"));
 });
+
+test("prepareRequest carries modelAssumptions and asOf for a v4 row", () => {
+  const input = modelPacket();
+  input.asOf = "2026-07-29";
+  const request = prepareRequest([input], { asOf: "2026-07-29", assumptions: modelAssumptions(), requireModel: true });
+  const row = request.inputRows[0];
+  assert.deepEqual(Object.keys(row).sort(), ["asOf", "financialPacket", "identityPacket", "modelAssumptions", "qualitativePacket"]);
+  assert.equal(typeof row.modelAssumptions, "string");
+  assert.equal(JSON.parse(row.modelAssumptions).scenarios.base.years, 5);
+  assert.equal(row.asOf, "2026-07-29");
+});
+
+test("prepareRequest resolves assumptions by ticker for a batch", () => {
+  const request = prepareRequest([modelPacket()], { asOf: "2026-07-29", assumptions: { AAPL: modelAssumptions() }, requireModel: true });
+  assert.equal(typeof request.inputRows[0].modelAssumptions, "string");
+});
