@@ -9,13 +9,21 @@
 > Past performance is not indicative of future results. You are responsible for
 > your own investment decisions and should consult a licensed professional
 > before acting on anything the Skill produces.
-
 A Skill for local Agents (Codex / Claude Code / WorkBuddy / etc.) that
 performs batch long-term value screening of US equities through
 **Warren Buffett's four filters**. The local Agent collects and validates
 ticker data, then the LoomLoom public SkillBot runs a parallel research
 pass across those four filters, and finally the local Agent audits the
 evidence, applies hard vetos, and emits a deterministic Markdown report.
+
+**v4 adds a preflight gate and investment modeling:** a deterministic Code node
+validates the packet, assumptions, freshness, sources, units, market-cap
+reconciliation, balance sheet, and source tiers before any paid review runs; a
+second Code node builds an integrated three-statement projection, a three-scenario
+DCF, a reverse DCF, and a 5×5 sensitivity grid, and returns an xlsx workbook.
+Every driver is explicit; a missing assumption blocks the model instead of
+defaulting a discount rate. The local audit recomputes the same engine and vetoes
+any cloud/local mismatch.
 
 The Skill is distributed through the **CogFoundry** platform
 (`https://loomloom.cogfoundry.ai`) and the source-of-truth repo lives at
@@ -62,13 +70,165 @@ invalidate the verdict, then stops.
    parallel reviews complete; pull result rows.
 7. **Local audit, merge, and report.** Evidence audit (source_ref must
    resolve into the input row, source_value must match the atomic fact
-   exactly), 9 hard vetos, deterministic ranking, Markdown report.
+   exactly), hard veto rules, deterministic ranking, Markdown report.
 8. **Deliver.** Report, audit JSON, run ID, order ID, data and price
    cutoffs, actual fees. Decision tier per row is one of `deep_research`,
    `watchlist`, `pass`, or `rejected`.
 
 Full workflow is documented in
 [SKILL.md](skill/loomloom-019fad3b-8831-7986-bdd0-db4620e261b8/SKILL.md).
+
+## Investment Modeling (v4)
+
+The model is deliberately split into a **cloud Code node** and a **local
+recomputation** that run the same reviewed Python source:
+
+![LoomLoom native template flow](docs/images/v4-loomloom-flow.png)
+
+![v4 pipeline](docs/images/v4-pipeline.png)
+
+*The pipeline view focuses on the data path and omits the preflight gate; the native flow above is the step-exact view.*
+
+![v4 model map](docs/images/v4-model-map.png)
+
+| Layer | What it does |
+|---|---|
+| `templates/buffett-four-filters-model.cogfoundry/` | Six-step template: `stp_preflight` gate + four LLM reviews + `stp_model01`, all Code nodes on `python-pure@1` |
+| `skill/.../model/preflight_code.py` | Cloud preflight gate: packet, freshness, sources, units, market cap, balance sheet, tiers, DCF drivers |
+| `skill/.../model/valuation_model.py` | Deterministic engine: three statements, DCF, reverse DCF, sensitivity, xlsx writer (stdlib only) |
+| `skill/.../model/valuation_model.cloud.py` | Compact, semantically identical copy injected into the template (Code limit 65,536 bytes) |
+| `skill/.../scripts/run-model.mjs` | Local reference run (`model.json` + `model.xlsx`) |
+| `skill/.../scripts/sync-model-code.mjs` | Injects/checks the engine source inside the template |
+
+### What the model needs
+
+`financialPacket.balanceSheet` with equity, shares, working capital (or current
+assets/liabilities), and net PP&E (or total assets), plus
+`marketSnapshot.marketCapUsd` for the ±2% reconciliation. Qualitative facts carry
+`sourceTier` (S/A/B/C). The optional `asOf` input sets the freshness reference.
+Plus a separate `modelAssumptions` JSON string per scenario:
+
+```json
+{
+  "schemaVersion": "loomloom-model-assumptions/v1",
+  "asOf": "2026-09-01",
+  "baseScenario": "base",
+  "scenarios": {
+    "base": {
+      "years": 5,
+      "revenueGrowth": [0.04, 0.04, 0.04, 0.035, 0.035],
+      "ebitMargin": [0.32, 0.32, 0.32, 0.32, 0.32],
+      "taxRate": 0.21,
+      "daPctRevenue": 0.03,
+      "capexPctRevenue": 0.035,
+      "nwcPctRevenue": 0.10,
+      "interestRateOnDebt": 0.04,
+      "debtRepaymentPct": 0.05,
+      "wacc": 0.085,
+      "terminalMethod": "perpetuity",
+      "terminalGrowth": 0.025
+    }
+  },
+  "sources": [
+    {"field": "scenarios.base.wacc", "value": "0.085", "source": "user-supplied assumption", "date": "2026-09-01"}
+  ]
+}
+```
+
+Missing drivers are errors. The model never supplies a default WACC, growth rate,
+or terminal multiple. Full driver ranges, formulas, and failure modes are in
+[investment-model.md](skill/loomloom-019fad3b-8831-7986-bdd0-db4620e261b8/references/investment-model.md).
+
+### Commands
+
+Run these from the installed Skill directory
+(`skill/loomloom-019fad3b-8831-7986-bdd0-db4620e261b8/`).
+
+```bash
+# 1. Gate the packet and assumptions
+node scripts/preflight.mjs --input packets.json --assumptions assumptions.json \
+  --require-model --output preflight.json --pretty
+
+# 2. Local reference model + workbook
+node scripts/run-model.mjs --packets packets.json --assumptions assumptions.json \
+  --out model.json --xlsx model.xlsx
+
+# 3. Verify the template embeds the reviewed engine
+node scripts/sync-model-code.mjs --check
+
+# 3b. Run the cross-document invariant gate (packet + model + workbook + audit)
+node scripts/check-invariants.mjs --packets packets.json --assumptions assumptions.json \
+  --model model.json --xlsx model.xlsx --require-model --output invariants.json
+
+# 4. After the paid run: attach, audit, report
+node scripts/merge-public-results.mjs --input result-rows.json --models model.json \
+  --require-model --output audit.json --pretty
+node scripts/render-report.mjs --input audit.json --output report.md
+```
+
+### What the report adds
+
+- Base and scenario value per share, current price, and margin of safety.
+- Enterprise value → net debt → equity value → per-share bridge.
+- Terminal-value share of EV and the reverse-DCF implied growth.
+- Every `error`-severity integrity check (balance sheet, cash tie, equity roll-forward, FCFF recomputation, DCF reconciliation).
+- Model-level invariants: sensitivity-grid center equals the base value, and the reverse DCF reproduces the current price.
+- Cloud-vs-local audit status: `matched`, `mismatch`, `cloud_model_missing`, or `local_reference_missing`.
+- A single `check-invariants.mjs` gate that cross-checks packet identity, price, as-of, currency, shares, model integrity, sensitivity shape/center, reverse DCF, workbook parts, and audit mismatch counts.
+- Model warnings such as `NWC_DRIVER_MISMATCH`, `NEGATIVE_CASH`, and `TERMINAL_VALUE_DOMINANT`.
+- Cloud preflight status and, when blocked, the exact findings that prevented the paid steps from running.
+
+### Hard boundaries
+
+- A model value is conditional arithmetic, **not a target price** and not a
+  buy/sell instruction. The report states the assumptions next to the number.
+- The model never overrides the four-dimension scores. It adds an independent
+  anchor and a contradiction veto: a base-case MOS below -50% cannot coexist with
+  an unqualified deep-research valuation verdict.
+- The workbook is a presentation of the audited JSON, not a live Excel model.
+  Change assumptions and rerun; do not edit the workbook and treat it as evidence.
+- Cloud and local numbers must agree within 1e-4 relative; otherwise the row gets
+  `model_recompute_mismatch` and leaves the ranking.
+
+### Production path vs controlled test
+
+The current public Listing's input schema accepts the three packets only. A Market
+run through that Listing therefore cannot pass `modelAssumptions` to a Code node.
+Until a new Listing version exposes the field, the production-safe path is:
+
+1. run the model locally (`run-model.mjs`),
+2. attach it to the audit with `--models`,
+3. report the cloud-vs-local status as `cloud_model_missing` (the local model is
+   still attached and auditable).
+
+The v4 private template is for controlled Code review on the test server.
+Publishing a new Listing version is a separate creator action that requires
+explicit confirmation, a price review, and a new public input-schema snapshot.
+
+### Test-environment integration
+
+The v4 template's Code step is only executable where the server has the Code
+runtime enabled. A helper script wraps the test server profile:
+
+```bash
+export LOOMLOOM_TOKEN_SHENGSUANYUN_TEST='<your test key>'
+bash scripts/dev/test-env.sh doctor
+bash scripts/dev/test-env.sh check ../../templates/buffett-four-filters-model.cogfoundry/template.json
+```
+
+See [docs/investment-modeling.md](docs/investment-modeling.md) for the full
+walkthrough, including `create`, `run`, and how to read `result-rows`.
+
+A verified single-row AAPL run on 2026-10-22 completed with:
+
+- template `03cc5781-ddca-40e3-a9df-ccf1fe626447`, version 2 `b2342e4b-83d6-4111-854b-d061db9f2d06`
+- final run `96a6542c-c121-4ce0-9091-2bc572e4f638`, actual cost `0.0182364 CNY`
+- cloud preflight passed `229` checks; cloud model ready, engine `1.1.0`, base value `137.681532`, MOS `-60.15%`
+- cloud/local model audit `matched`; invariant gate `24/24`
+- workbook 17 sheets; local audit accepted with 32 verified evidence and 0 rejected
+- gating test `9464a209-fe37-44fc-abd8-a001b8434119`: a bad row returned `ready=false` with 3 findings, produced 0 artifacts, and skipped all five downstream steps
+
+The token is not stored in the repository.
 
 ## Decision Tiers
 
@@ -224,6 +384,12 @@ Key results:
 
 Total out-of-pocket cost across the validation runs: **USD 1.44**.
 
+The v4 model engine has its own deterministic test suite: 36 Python tests on both
+CPython 3.9 and 3.12 (including a workbook that opens in openpyxl and is
+byte-stable) plus 74 Node tests covering preflight, model merge, recomputation
+vetos, reporting, and the template contract. These tests do not consume cloud
+credits.
+
 ## Sample Output
 
 The three screenshots below come straight from the validation runs — a
@@ -271,25 +437,43 @@ README.md                                                          This file
 LICENSE                                                            MIT
 index.html                                                         Static product page
 docs/                                                              Page assets + English tutorial
-  images/                                                          Sample-output screenshots used in README
+  diagrams.py                                                      Pillow generator for the v4 relationship diagrams
+  images/                                                          Sample-output screenshots + v4 diagrams
 skill/
   loomloom-019fad3b-8831-7986-bdd0-db4620e261b8/                    The Skill (reviewable)
     SKILL.md                                                       Authoritative contract for the local Agent
     loomloom-skill.json                                            Listing metadata
     agents/openai.yaml                                             Agent-side model hint
+    model/
+      preflight_code.py                                            Cloud preflight gate (stdlib only)
+      valuation_model.py                                           Three statements + DCF + xlsx writer (stdlib only)
+      valuation_model.cloud.py                                     Compact cloud copy injected into the template
+      minify_code.py                                               AST compactor + size/current check
+      test_preflight_code.py                                       Preflight gate tests
+      test_valuation_model.py                                      Engine unit tests
+      test_minify.py                                               Compact-copy equivalence and size tests
+      fixtures/                                                    Balanced AAPL packets + assumptions
     references/
       data-contract.md                                             Per-field schema + freshness thresholds
       decision-policy.md                                           Hard veto rules + ranking criteria
+      investment-model.md                                          Assumptions, formulas, checks, failure modes
     scripts/
-      preflight.mjs + .test.mjs                                    Local validation
+      preflight.mjs + .test.mjs                                    Local validation (incl. model gate)
+      run-model.mjs                                                Local reference model run
+      check-invariants.mjs + .test.mjs                             Cross-document invariant gate
+      sync-model-code.mjs                                          Inject/check engine source in the template
       prepare-market-input.mjs + .test.mjs                         Packet -> Market request
       prepare-cogfoundry-input.mjs + .test.mjs                     Market request -> cogfoundry wire shape
-      merge-public-results.mjs + .test.mjs                         Local evidence audit + 9 hard vetos
+      merge-public-results.mjs + .test.mjs                         Local evidence + model audit, hard vetos
+      model-integration.test.mjs                                   Model merge/report/template tests
       render-report.mjs                                            Markdown report
 templates/
-  buffett-four-filters.cogfoundry/                                 CogFoundry private template
+  buffett-four-filters.cogfoundry/                                 v3: four LLM reviews
     template.json                                                  4-way parallel review prompt spec
     README.md                                                      TemplateSpec authoring notes
+  buffett-four-filters-model.cogfoundry/                           v4: four reviews + deterministic Code node
+    template.json                                                  Canonical v2 envelope (code source injected)
+    README.md                                                      v4 authoring and test notes
 ```
 
 ## License

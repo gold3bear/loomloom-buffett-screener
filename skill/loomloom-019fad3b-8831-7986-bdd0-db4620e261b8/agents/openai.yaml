@@ -1,4 +1,4 @@
 interface:
   display_name: "US Equity Long-Term Value Batch Screening"
-  short_description: "Local evidence audit combined with LoomLoom cloud parallel review"
-  default_prompt: "Use $loomloom-019fad3b-8831-7986-bdd0-db4620e261b8 to analyze the US tickers I provide: first prepare and validate the data, quote, wait for my confirmation, then generate an auditable screening report."
+  short_description: "Local evidence audit, cloud parallel review, and a deterministic three-statement DCF"
+  default_prompt: "Use $loomloom-019fad3b-8831-7986-bdd0-db4620e261b8 to analyze the US tickers I provide: prepare and validate the packets and, when I supply DCF assumptions, run the three-statement model locally; quote, wait for my confirmation, then generate an auditable screening report with the model value, margin of safety, and integrity checks."

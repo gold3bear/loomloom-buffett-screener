@@ -24,6 +24,8 @@ function argsOf(argv) {
   for (let i = 0; i < argv.length; i += 1) {
     if (["--input", "-i"].includes(argv[i])) args.input = argv[++i];
     else if (["--output", "-o"].includes(argv[i])) args.output = argv[++i];
+    else if (["--models", "-m"].includes(argv[i])) args.models = argv[++i];
+    else if (argv[i] === "--require-model") args.requireModel = true;
     else if (argv[i] === "--pretty") args.pretty = true;
     else if (["--help", "-h"].includes(argv[i])) args.help = true;
     else throw new Error(`Unknown argument: ${argv[i]}`);
@@ -42,6 +44,159 @@ function parseJson(value, label) {
 }
 
 const PACKET_LABELS = { IDENTITY: "identityPacket", FINANCIAL: "financialPacket", QUALITATIVE: "qualitativePacket" };
+
+// ---------------------------------------------------------------------------
+// Investment model (v4): attach the deterministic local recomputation and
+// audit it against any model object the cloud Code node returned.
+// ---------------------------------------------------------------------------
+
+const MODEL_SCHEMA = "loomloom-investment-model/v1";
+const MODEL_NUMERIC_FIELDS = ["valuePerShare", "enterpriseValue", "equityValue", "marginOfSafetyPct"];
+const MODEL_RELATIVE_TOLERANCE = 1e-4;
+const MODEL_CONTRADICTION_MOS = -0.5;
+
+function modelVerdict(model) {
+  if (!model) return "not_modeled";
+  if (!model.model_ready) return "model_not_ready";
+  const summary = model.scenarios?.[model.baseScenario]?.summary;
+  const mos = summary?.marginOfSafetyPct;
+  if (typeof mos !== "number") return "model_incomplete";
+  if (mos >= 0.3) return "margin_of_safety_present";
+  if (mos >= 0) return "at_or_near_model_value";
+  return "price_above_model_value";
+}
+
+// Accept a single model, an array of models, {models:[...]}, or {TICKER: model}.
+function modelsOf(payload) {
+  const map = new Map();
+  if (!payload) return map;
+  let list = [];
+  if (Array.isArray(payload)) list = payload;
+  else if (Array.isArray(payload.models)) list = payload.models;
+  else if (isObject(payload) && payload.schemaVersion === MODEL_SCHEMA) list = [payload];
+  else if (isObject(payload)) list = Object.values(payload);
+  for (const model of list) {
+    const ticker = String(model?.ticker ?? "").toUpperCase();
+    if (ticker) map.set(ticker, model);
+  }
+  return map;
+}
+
+function findModelObject(value, depth = 0) {
+  if (value === null || value === undefined || depth > 5) return null;
+  if (typeof value === "string") {
+    if (value.length > 2_000_000) return null;
+    const parsed = parseJson(value, "nested model");
+    return parsed.value && parsed.value.schemaVersion === MODEL_SCHEMA ? parsed.value : null;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value.slice(0, 100)) {
+      const found = findModelObject(item, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (!isObject(value)) return null;
+  if (value.schemaVersion === MODEL_SCHEMA) return value;
+  if (isObject(value.model) && value.model.schemaVersion === MODEL_SCHEMA) return value.model;
+  const skip = new Set(["inputJson", "prompt", "input", "artifacts", "inlineText", "text", "content"]);
+  for (const [key, child] of Object.entries(value).slice(0, 50)) {
+    if (skip.has(key)) continue;
+    const found = findModelObject(child, depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
+
+function cloudModelOf(row) {
+  if (isObject(row.model) && row.model.schemaVersion === MODEL_SCHEMA) return row.model;
+  for (const key of ["values", "outputs", "steps", "result"]) {
+    const found = findModelObject(row[key]);
+    if (found) return found;
+  }
+  const candidates = [];
+  for (const artifact of row.artifacts ?? []) if (typeof artifact?.inlineText === "string") candidates.push(artifact.inlineText);
+  for (const [key, value] of Object.entries(row)) {
+    if (key === "inputJson" || key === "artifacts") continue;
+    candidates.push(value);
+  }
+  for (const value of Object.values(row.values ?? {})) candidates.push(value);
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string" || candidate.length > 2_000_000) continue;
+    const parsed = parseJson(candidate, "model output");
+    const value = parsed.value;
+    if (value?.schemaVersion === MODEL_SCHEMA) return value;
+    if (value?.model?.schemaVersion === MODEL_SCHEMA) return value.model;
+  }
+  return null;
+}
+
+function cloudPreflightOf(row) {
+  const values = Array.isArray(row.values) ? row.values : [];
+  const entry = (portId) => values.find((value) => value.stepId === "stp_preflight" && value.portId === portId);
+  const readyEntry = entry("ready");
+  const findingsEntry = entry("findings");
+  const summaryEntry = entry("summary");
+  if (!readyEntry && !findingsEntry && !summaryEntry) return null;
+  const parse = (value) => (typeof value === "string" ? parseJson(value, "preflight").value : value);
+  const ready = parse(readyEntry?.value);
+  const findings = parse(findingsEntry?.value);
+  const summary = parse(summaryEntry?.value);
+  return {
+    ready: ready === true,
+    findings: Array.isArray(findings) ? findings : [],
+    summary: isObject(summary) ? summary : null,
+  };
+}
+
+function relativeDelta(left, right) {
+  if (typeof left !== "number" || typeof right !== "number" || !Number.isFinite(left) || !Number.isFinite(right)) return null;
+  return Math.abs(left - right) / Math.max(1, Math.abs(right));
+}
+
+function auditModel(cloud, local) {
+  if (!cloud && !local) return { status: "not_run", mismatches: [] };
+  if (!local) return { status: "local_reference_missing", mismatches: [] };
+  if (!cloud) return { status: "cloud_model_missing", mismatches: [] };
+  const mismatches = [];
+  if (Boolean(cloud.model_ready) !== Boolean(local.model_ready)) mismatches.push(`model_ready differs (cloud ${cloud.model_ready}, local ${local.model_ready})`);
+  if (String(cloud.baseScenario ?? "") !== String(local.baseScenario ?? "")) mismatches.push(`baseScenario differs (cloud ${cloud.baseScenario}, local ${local.baseScenario})`);
+  for (const [name, scenario] of Object.entries(local.scenarios ?? {})) {
+    for (const field of MODEL_NUMERIC_FIELDS) {
+      const delta = relativeDelta(cloud.scenarios?.[name]?.summary?.[field], scenario.summary?.[field]);
+      if (delta === null) mismatches.push(`${name}.${field}: not comparable`);
+      else if (delta > MODEL_RELATIVE_TOLERANCE) mismatches.push(`${name}.${field}: relative delta ${delta.toExponential(2)}`);
+    }
+  }
+  const cloudGrid = cloud.sensitivity?.valuesPerShare;
+  const localGrid = local.sensitivity?.valuesPerShare;
+  if ((Array.isArray(cloudGrid) || Array.isArray(localGrid)) && (!Array.isArray(cloudGrid) || !Array.isArray(localGrid) || cloudGrid.length !== localGrid.length)) {
+    mismatches.push("sensitivity grid shape differs");
+  }
+  if (Array.isArray(cloudGrid) && Array.isArray(localGrid) && cloudGrid.length === localGrid.length) {
+    for (let row = 0; row < localGrid.length; row += 1) {
+      if (!Array.isArray(cloudGrid[row]) || cloudGrid[row].length !== localGrid[row].length) { mismatches.push(`sensitivity row ${row}: shape differs`); continue; }
+      for (let col = 0; col < localGrid[row].length; col += 1) {
+        const delta = relativeDelta(cloudGrid[row][col], localGrid[row][col]);
+        if (delta === null) { if (cloudGrid[row][col] !== localGrid[row][col]) mismatches.push(`sensitivity[${row}][${col}]: not comparable`); }
+        else if (delta > MODEL_RELATIVE_TOLERANCE) mismatches.push(`sensitivity[${row}][${col}]: relative delta ${delta.toExponential(2)}`);
+      }
+    }
+  }
+  return { status: mismatches.length ? "mismatch" : "matched", comparedScenarios: Object.keys(local.scenarios ?? {}).length, mismatches: mismatches.slice(0, 20) };
+}
+
+function modelInfoOf(row, ticker, options) {
+  const local = options.models?.get(ticker) ?? null;
+  const cloud = cloudModelOf(row);
+  const audit = auditModel(cloud, local);
+  return {
+    investment_model: local,
+    model_source: local ? "local_recompute" : cloud ? "cloud_only" : "none",
+    model_verdict: modelVerdict(local),
+    model_audit: audit,
+  };
+}
 
 // H-2: extract a JSON packet from a prompt string.
 // 1) Accept ```json / ``` fences (common cloud output format)
@@ -110,6 +265,27 @@ function parseInput(row) {
     outer = typeof row.inputJson === "string" ? JSON.parse(row.inputJson) : (row.inputJson ?? row.input ?? {});
   } catch { return {}; }
   if (!isObject(outer)) return {};
+
+  // Preferred -1 (v4 private template): outer.tickerPacket is one JSON object that
+  // already contains identityPacket / financialPacket / qualitativePacket, and
+  // modelAssumptions travels beside it.
+  if (isObject(outer.tickerPacket)) {
+    if (typeof outer.modelAssumptions === "string") {
+      try { outer.tickerPacket.modelAssumptions = JSON.parse(outer.modelAssumptions); } catch { /* keep the packet */ }
+    }
+    return outer.tickerPacket;
+  }
+  if (typeof outer.tickerPacket === "string" && outer.tickerPacket.trim()) {
+    try {
+      const parsedPacket = JSON.parse(outer.tickerPacket);
+      if (isObject(parsedPacket) && (parsedPacket.identityPacket || parsedPacket.financialPacket || parsedPacket.qualitativePacket)) {
+        if (typeof outer.modelAssumptions === "string") {
+          try { parsedPacket.modelAssumptions = JSON.parse(outer.modelAssumptions); } catch { /* keep the packet */ }
+        }
+        return parsedPacket;
+      }
+    } catch { /* fall through to the legacy segment parser */ }
+  }
 
   // Preferred 0 (cogfoundry): outer.tickerPacket is a single string with the three packets
   // concatenated in identityPacket → financialPacket → qualitativePacket order, separated
@@ -366,7 +542,7 @@ function unknownKey(value) {
   return text(value).toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, " ").trim();
 }
 
-function mergeRow(row, index) {
+function mergeRow(row, index, options = {}) {
   const errors = [];
   let input = {};
   try { input = parseInput(row); } catch { errors.push("inputJson could not be parsed"); }
@@ -374,7 +550,16 @@ function mergeRow(row, index) {
   const { reviews, normalized } = reviewsOf(row, errors);
   const ticker = text(input.identityPacket?.ticker).toUpperCase();
   if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker)) errors.push("input ticker is invalid");
-  if (errors.length) return rejected(row, index, ticker, errors, normalized);
+  const modelInfo = modelInfoOf(row, ticker, options);
+  const preflight = cloudPreflightOf(row);
+  if (preflight && preflight.ready === false) {
+    const failures = preflight.findings.filter((finding) => finding.severity === "error");
+    for (const finding of failures.slice(0, 10)) {
+      errors.push(`cloud preflight ${finding.code} at ${finding.path}: ${finding.message}`);
+    }
+    if (!failures.length) errors.push("cloud preflight returned ready=false without findings");
+  }
+  if (errors.length) return rejected(row, index, ticker, errors, normalized, { ...modelInfo, cloud_preflight: preflight });
 
   // M-4: per-dimension evidence_records and source_value length caps to prevent oversized outputs.
   for (const [dimension, review] of Object.entries(reviews)) {
@@ -429,7 +614,7 @@ function mergeRow(row, index) {
     financial_quality: score(fin.financial_quality_score, "financial_quality_score", errors),
     valuation_opportunity_cost: Math.round((score(val.valuation_score, "valuation_score", errors) + score(val.margin_of_safety_score, "margin_of_safety_score", errors)) / 2),
   };
-  if (errors.length) return rejected(row, index, ticker, errors, normalized);
+  if (errors.length) return rejected(row, index, ticker, errors, normalized, { ...modelInfo, cloud_preflight: preflight });
 
   const evidence = auditEvidence(reviews, input);
   const veto = [];
@@ -451,6 +636,15 @@ function mergeRow(row, index) {
   const valuationText = [val.summary, ...(val.positive_points ?? []), ...(val.contrary_points ?? []), ...(val.valuation_red_flags ?? [])].join("\n");
   if (forbiddenForecast(valuationText)) veto.push("forbidden_numeric_claims");
   if (evidence.rejected.length > evidence.verified.length || evidence.rejected.length >= EXCESSIVE_REJECTED_EVIDENCE_MIN) veto.push("excessive_rejected_evidence");
+  // v4 model vetos: a required model must exist and be ready, the cloud Code node
+  // must match the local recomputation, and a model value more than 50% below the
+  // current price must not coexist with an unqualified deep-research valuation verdict.
+  if (options.requireModel && !modelInfo.investment_model) veto.push("model_required_but_missing");
+  if (options.requireModel && modelInfo.investment_model && !modelInfo.investment_model.model_ready) veto.push("model_not_ready");
+  if (modelInfo.model_audit?.status === "mismatch") veto.push("model_recompute_mismatch");
+  const modelMos = modelInfo.investment_model?.scenarios?.[modelInfo.investment_model?.baseScenario]?.summary?.marginOfSafetyPct;
+  if (typeof modelMos === "number" && modelMos < MODEL_CONTRADICTION_MOS && val.judgment_state === "eligible_for_manual_deep_research")
+    veto.push("model_contradicts_valuation_verdict");
 
   const overall = Math.round(Object.entries(WEIGHTS).reduce((sum, [key, weight]) => sum + components[key] * weight, 0));
   const unknowns = [...new Set(DIMENSIONS.flatMap((dimension) => (reviews[dimension].unknowns ?? []).map(unknownKey).filter(Boolean)))];
@@ -494,11 +688,13 @@ function mergeRow(row, index) {
     falsification_conditions: val.falsification_conditions, veto_items: uniqueVeto,
     verified_evidence: evidence.verified, rejected_evidence: evidence.rejected,
     unknowns, review_summaries: Object.fromEntries(DIMENSIONS.map((dimension) => [dimension, reviews[dimension].summary ?? ""])),
+    cloud_preflight: preflight,
+    ...modelInfo,
   };
 }
 
-function rejected(row, index, ticker, errors, normalized) {
-  return { rowIndex: row.rowIndex ?? index, ticker, valid: false, validationStatus: "rejected", normalized, errors };
+function rejected(row, index, ticker, errors, normalized, modelInfo = {}) {
+  return { rowIndex: row.rowIndex ?? index, ticker, valid: false, validationStatus: "rejected", normalized, errors, ...modelInfo };
 }
 
 function ranking(rows) {
@@ -509,11 +705,30 @@ function ranking(rows) {
   ).map((row, index) => ({ rank: index + 1, ticker: row.ticker, overall_score: row.overall_score, confidence: row.confidence, decision: row.decision }));
 }
 
-export function mergeResults(payload) {
+export function mergeResults(payload, options = {}) {
   if (!Array.isArray(payload?.rows)) throw new Error("input must be a complete LoomLoom result-rows response");
-  const rows = payload.rows.map(mergeRow);
+  const models = options.models instanceof Map
+    ? new Map([...options.models].map(([ticker, value]) => [String(ticker).toUpperCase(), value]))
+    : modelsOf(options.models);
+  const resolved = { ...options, models };
+  const rows = payload.rows.map((row, index) => mergeRow(row, index, resolved));
   const rejectedRows = rows.filter(({ valid }) => !valid).length;
-  return { schemaVersion: "loomloom-us-value-local-audit/v1", valid: rejectedRows === 0, summary: { totalRows: rows.length, acceptedRows: rows.length - rejectedRows, rejectedRows, decisionEligibleRows: rows.filter(({ decision_eligible }) => decision_eligible).length }, ranking: ranking(rows), rows };
+  return {
+    schemaVersion: "loomloom-us-value-local-audit/v1",
+    valid: rejectedRows === 0,
+    summary: {
+      totalRows: rows.length,
+      acceptedRows: rows.length - rejectedRows,
+      rejectedRows,
+      decisionEligibleRows: rows.filter(({ decision_eligible }) => decision_eligible).length,
+      modeledRows: rows.filter(({ investment_model }) => investment_model).length,
+      modelReadyRows: rows.filter(({ investment_model }) => investment_model?.model_ready).length,
+      modelMismatchRows: rows.filter(({ model_audit }) => model_audit?.status === "mismatch").length,
+      preflightBlockedRows: rows.filter(({ cloud_preflight }) => cloud_preflight?.ready === false).length,
+    },
+    ranking: ranking(rows),
+    rows,
+  };
 }
 
 async function readText(path) {
@@ -525,9 +740,10 @@ async function readText(path) {
 
 async function main() {
   const args = argsOf(process.argv.slice(2));
-  if (args.help) return process.stdout.write("node scripts/merge-public-results.mjs --input <result-rows.json|-> [--output audit.json] [--pretty]\n");
+  if (args.help) return process.stdout.write("node scripts/merge-public-results.mjs --input <result-rows.json|-> [--models models.json] [--require-model] [--output audit.json] [--pretty]\n");
   if (!args.input) throw new Error("--input is required");
-  const report = mergeResults(JSON.parse(await readText(args.input)));
+  const models = args.models ? JSON.parse(await readText(args.models)) : null;
+  const report = mergeResults(JSON.parse(await readText(args.input)), { models, requireModel: Boolean(args.requireModel) });
   const output = `${JSON.stringify(report, null, args.pretty ? 2 : 0)}\n`;
   if (args.output) await writeFile(args.output, output, "utf8"); else process.stdout.write(output);
   process.exitCode = report.valid ? 0 : 1;

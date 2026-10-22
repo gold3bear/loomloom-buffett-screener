@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "loomloom-model-assumptions/v1",
+  "asOf": "2026-09-01",
+  "currency": "USD",
+  "units": "USD millions",
+  "baseScenario": "base",
+  "scenarios": {
+    "bear": {
+      "label": "Bear",
+      "years": 5,
+      "revenueGrowth": [0.01, 0.01, 0.01, 0.01, 0.01],
+      "ebitMargin": [0.28, 0.27, 0.26, 0.25, 0.24],
+      "taxRate": 0.21,
+      "daPctRevenue": 0.03,
+      "capexPctRevenue": 0.04,
+      "nwcPctRevenue": 0.03,
+      "interestRateOnDebt": 0.045,
+      "debtRepaymentPct": 0.05,
+      "dividendPayoutRatio": 0.15,
+      "buybackPctOfNetIncome": 0.5,
+      "wacc": 0.10,
+      "terminalMethod": "perpetuity",
+      "terminalGrowth": 0.015
+    },
+    "base": {
+      "label": "Base",
+      "years": 5,
+      "revenueGrowth": [0.04, 0.04, 0.04, 0.035, 0.035],
+      "ebitMargin": [0.32, 0.32, 0.32, 0.32, 0.32],
+      "taxRate": 0.21,
+      "daPctRevenue": 0.03,
+      "capexPctRevenue": 0.035,
+      "nwcPctRevenue": 0.03,
+      "interestRateOnDebt": 0.04,
+      "debtRepaymentPct": 0.05,
+      "dividendPayoutRatio": 0.15,
+      "buybackPctOfNetIncome": 0.5,
+      "wacc": 0.085,
+      "terminalMethod": "perpetuity",
+      "terminalGrowth": 0.025
+    },
+    "bull": {
+      "label": "Bull",
+      "years": 5,
+      "revenueGrowth": [0.07, 0.07, 0.06, 0.06, 0.05],
+      "ebitMargin": [0.34, 0.35, 0.35, 0.36, 0.36],
+      "taxRate": 0.21,
+      "daPctRevenue": 0.03,
+      "capexPctRevenue": 0.03,
+      "nwcPctRevenue": 0.03,
+      "interestRateOnDebt": 0.04,
+      "debtRepaymentPct": 0.05,
+      "dividendPayoutRatio": 0.15,
+      "buybackPctOfNetIncome": 0.5,
+      "wacc": 0.075,
+      "terminalMethod": "perpetuity",
+      "terminalGrowth": 0.03
+    }
+  },
+  "sources": [
+    {"field": "scenarios.base.revenueGrowth", "value": "[0.04,0.04,0.04,0.035,0.035]", "source": "user-supplied assumption", "date": "2026-09-01"},
+    {"field": "scenarios.base.wacc", "value": "0.085", "source": "user-supplied assumption", "date": "2026-09-01"},
+    {"field": "scenarios.base.terminalGrowth", "value": "0.025", "source": "user-supplied assumption", "date": "2026-09-01"}
+  ],
+  "unknowns": []
+}
