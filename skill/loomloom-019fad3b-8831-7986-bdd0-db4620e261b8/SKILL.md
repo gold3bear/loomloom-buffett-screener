@@ -283,7 +283,7 @@ Run this section when the user asks for modeling or supplies DCF assumptions. Sk
 7. **Show the user the modeling summary before quoting:** model-ready status, base value per share, current price, margin of safety, terminal-value share, and every warning. State plainly that the model value is conditional arithmetic, not a target price.
 8. **If the model is not ready:** report the missing inputs and errors. Either fix the packet/assumptions, or ask the user whether to run the four-filter screen without a model (v3 template). Never silently drop the model or substitute a default.
 
-The modeling template is `templates/buffett-four-filters-model.cogfoundry/template.json` (v4, six steps: `stp_preflight` gate, four LLM reviews, and `stp_model01`). The v3 four-filter template remains available for runs without modeling.
+The modeling template is `templates/buffett-four-filters-model.cogfoundry/template.json` (v4, eight steps: `stp_preflight` gate, four LLM reviews, `stp_model01`, `stp_audit1`, and `stp_report`). The v3 four-filter template remains available for runs without modeling.
 
 **Production path.** The current public Listing's input schema accepts only the three packets. Until a new Listing version exposes `modelAssumptions`, run the model locally and pass `--models` to the audit. The v4 private template is for controlled Code review; it does not by itself change the public Listing, and publishing a new Listing version requires separate creator confirmation.
 

@@ -18,6 +18,8 @@ export const DEFAULT_TEMPLATE = path.resolve(HERE, "..", "..", "..", "templates"
 export const CODE_SOURCES = {
   stp_preflight: PREFLIGHT_PATH,
   stp_model01: CLOUD_ENGINE_PATH,
+  stp_audit1: path.resolve(HERE, "..", "model", "audit_code.py"),
+  stp_report: path.resolve(HERE, "..", "model", "report_code.py"),
 };
 
 function argsOf(argv) {

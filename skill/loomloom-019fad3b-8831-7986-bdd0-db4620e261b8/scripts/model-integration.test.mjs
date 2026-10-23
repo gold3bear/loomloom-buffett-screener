@@ -133,9 +133,9 @@ test("v4 template is a canonical v2 spec with a codeProfile step", async () => {
   const parsed = JSON.parse(raw);
   const spec = parsed.canonicalSpecV2 ?? parsed;
   assert.ok(spec.meta && Array.isArray(spec.steps) && spec.workbook);
-  assert.equal(spec.steps.length, 6);
+  assert.equal(spec.steps.length, 8);
   const codeSteps = spec.steps.filter((step) => step.executionBinding.kind === "codeProfile");
-  assert.equal(codeSteps.length, 2);
+  assert.equal(codeSteps.length, 4);
   const codeStep = codeSteps.find((step) => step.stepId === "stp_model01");
   assert.ok(codeStep);
   assert.deepEqual(Object.keys(codeStep.code.inputs).sort(), ["assumptions", "tickerPacket"]);
@@ -150,10 +150,25 @@ test("v4 template is a canonical v2 spec with a codeProfile step", async () => {
   assert.deepEqual(Object.keys(preflight.code.outputs).sort(), ["findings", "ready", "summary"]);
   assert.equal(preflight.inputBindings.asOf.inputKey, "asOf");
   assert.equal(preflight.inputBindings.asOf.fallbackValue, "");
-  for (const step of spec.steps.filter((candidate) => candidate.stepId !== "stp_preflight")) {
+  const gated = spec.steps.filter((candidate) => ["stp_business", "stp_management", "stp_financial", "stp_valuation", "stp_model01"].includes(candidate.stepId));
+  assert.equal(gated.length, 5);
+  for (const step of gated) {
     assert.deepEqual(step.dependsOn, ["stp_preflight"]);
     assert.deepEqual(step.when, { stepId: "stp_preflight", portId: "ready", equals: true });
   }
+  const audit = spec.steps.find((step) => step.stepId === "stp_audit1");
+  assert.ok(audit);
+  assert.equal(audit.executionBinding.kind, "codeProfile");
+  assert.deepEqual(Object.keys(audit.code.outputs).sort(), ["accepted", "audit", "findings", "model"]);
+  assert.equal(audit.inputBindings.model.source, "stepOutput");
+  assert.equal(audit.inputBindings.business.portId, "output");
+  assert.deepEqual(audit.when, { stepId: "stp_preflight", portId: "ready", equals: true });
+  const report = spec.steps.find((step) => step.stepId === "stp_report");
+  assert.ok(report);
+  assert.deepEqual(report.dependsOn, ["stp_audit1"]);
+  assert.equal(report.when, undefined);
+  assert.equal(report.code.outputs.report.kind, "artifact");
+  assert.equal(report.code.outputs.report.mimeType, "text/markdown");
   const sample = spec.workbook.sampleRows[0].values;
   const assumptions = JSON.parse(sample.modelAssumptions);
   assert.ok(assumptions.scenarios.base);
@@ -164,9 +179,11 @@ test("v4 template is a canonical v2 spec with a codeProfile step", async () => {
 test("template code source is in sync with the engine", async () => {
   const result = await syncTemplate({ templatePath: TEMPLATE, write: false });
   assert.equal(result.changed, false);
-  assert.equal(result.steps.length, 2);
+  assert.equal(result.steps.length, 4);
   assert.equal(result.steps.find((entry) => entry.stepId === "stp_model01").changed, false);
   assert.equal(result.steps.find((entry) => entry.stepId === "stp_preflight").changed, false);
+  assert.equal(result.steps.find((entry) => entry.stepId === "stp_audit1").changed, false);
+  assert.equal(result.steps.find((entry) => entry.stepId === "stp_report").changed, false);
   assert.ok(result.sourceBytes > 10000);
 });
 

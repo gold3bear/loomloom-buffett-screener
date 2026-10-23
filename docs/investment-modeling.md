@@ -342,7 +342,10 @@ The preflight gate and model step are:
 }
 ```
 
-Both steps omit `profileId` / `profileRevision`; Core defaults to `python-pure@1`.
+The template also carries two cloud validation steps: `stp_audit1` (evidence
+refs, narrative numbers, scores/decision, model self-checks) and `stp_report`
+(Markdown artifact; it always runs and labels `accepted`/`rejected`). Both steps omit
+`profileId` / `profileRevision`; Core defaults to `python-pure@1`.
 Every step except `stp_preflight` declares `dependsOn: ["stp_preflight"]` and
 `when: {stepId: "stp_preflight", portId: "ready", equals: true}`.
 

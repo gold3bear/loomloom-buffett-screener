@@ -93,7 +93,7 @@ recomputation** that run the same reviewed Python source:
 
 | Layer | What it does |
 |---|---|
-| `templates/buffett-four-filters-model.cogfoundry/` | Six-step template: `stp_preflight` gate + four LLM reviews + `stp_model01`, all Code nodes on `python-pure@1` |
+| `templates/buffett-four-filters-model.cogfoundry/` | Eight-step template: `stp_preflight` gate + four LLM reviews + `stp_model01` + `stp_audit1` + `stp_report`, all Code nodes on `python-pure@1` |
 | `skill/.../model/preflight_code.py` | Cloud preflight gate: packet, freshness, sources, units, market cap, balance sheet, tiers, DCF drivers |
 | `skill/.../model/valuation_model.py` | Deterministic engine: three statements, DCF, reverse DCF, sensitivity, xlsx writer (stdlib only) |
 | `skill/.../model/valuation_model.cloud.py` | Compact, semantically identical copy injected into the template (Code limit 65,536 bytes) |
@@ -302,7 +302,7 @@ Freshness thresholds are enforced:
 - 10-K filing ≤ 18 months since the 10-K's fiscal year end
 - 10-Q filing ≤ 6 months since the 10-Q's period end
 
-The full execution manual — six-step collection flow, source-aware
+The full execution manual — per-ticker collection flow, source-aware
 copy discipline, failure-mode playbook, walkthrough with a real SEC
 data example, and the placeholder-fabrication anti-pattern — is in
 [SKILL.md section 3](skill/loomloom-019fad3b-8831-7986-bdd0-db4620e261b8/SKILL.md#3-build-the-data-packets-locally).
@@ -389,9 +389,9 @@ Key results:
 
 Total out-of-pocket cost across the validation runs: **USD 1.44**.
 
-The v4 model engine has its own deterministic test suite: 37 Python tests on both
+The v4 model engine has its own deterministic test suite: 44 Python tests on both
 CPython 3.9 and 3.12 (including a workbook that opens in openpyxl and is
-byte-stable) plus 91 Node tests covering preflight, model merge, recomputation
+byte-stable) plus 92 Node tests covering preflight, model merge, recomputation
 vetos, reporting, and the template contract. These tests do not consume cloud
 credits.
 

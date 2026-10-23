@@ -1,7 +1,7 @@
 {
   "meta": {
     "name": "Buffett Four-Filters US Equity Screening + Three-Statement DCF",
-    "description": "Parallel research screening of one US equity using Warren Buffett's four filters plus a deterministic preflight gate and a three-statement DCF Code node. The preflight gate validates packet shape, freshness, sources, units, market-cap reconciliation, balance-sheet fields, source tiers, and DCF drivers before any paid review runs; invalid input skips the five downstream steps. The model node builds the three statements, a three-scenario DCF, a reverse DCF, a sensitivity grid, and an xlsx artifact. The local Skill audits evidence, recomputes the model, ranks rows, and emits an auditable Markdown report. Research aid only — not investment advice."
+    "description": "Parallel research screening of one US equity using Warren Buffett's four filters plus a deterministic preflight gate, a three-statement DCF Code node, a cloud audit node and a cloud report node. The preflight gate validates packet shape, freshness, sources, units, market-cap reconciliation, balance-sheet fields, source tiers, and DCF drivers before any paid review runs; invalid input skips downstream steps. The model node builds the three statements, a three-scenario DCF, a reverse DCF, a sensitivity grid, and an xlsx artifact. The audit node resolves evidence paths, checks narrative numbers, scores the four dimensions and gates the report. Research aid only — not investment advice."
   },
   "templateInputs": {
     "tickerPacket": {
@@ -435,15 +435,197 @@
         "portId": "ready",
         "equals": true
       }
+    },
+    {
+      "stepId": "stp_audit1",
+      "displayName": "Cloud evidence, narrative and model audit",
+      "executionBinding": {
+        "kind": "codeProfile"
+      },
+      "dependsOn": [
+        "stp_preflight",
+        "stp_business",
+        "stp_management",
+        "stp_financial",
+        "stp_valuation",
+        "stp_model01"
+      ],
+      "when": {
+        "stepId": "stp_preflight",
+        "portId": "ready",
+        "equals": true
+      },
+      "code": {
+        "language": "python",
+        "entrypoint": "main",
+        "source": "#!/usr/bin/env python3\n# -*- coding: utf-8 -*-\n\"\"\"Cloud audit Code node for the LoomLoom v4 template.\n\nRuns after the four reviews and the model. It absorbs the local evidence audit,\nnarrative checks, scoring/decision logic and model self-checks so that a Market\nrun can return an accepted/rejected result without a local Node process.\n\nIt never rewrites numbers. Invalid evidence, unresolved refs, array/object\nrefs, narrative contradictions and failed model checks become findings.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport json\nimport math\nimport re\nfrom typing import Any, Dict, List, Optional, Tuple\n\nDIMENSIONS = (\"business\", \"moat\", \"financial\", \"valuation\")\nWEIGHTS = {\n    \"understandability\": 0.10,\n    \"business_model\": 0.20,\n    \"moat\": 0.20,\n    \"management_capital_allocation\": 0.15,\n    \"financial_quality\": 0.20,\n    \"valuation_opportunity_cost\": 0.15,\n}\nDEEP_RESEARCH_THRESHOLD = 75\nWATCHLIST_THRESHOLD = 60\nWEAK_SCORE_THRESHOLD = 30\nHIGH_CONFIDENCE_MIN_EVIDENCE = 8\nHIGH_CONFIDENCE_MAX_UNKNOWNS = 3\nEXCESSIVE_REJECTED_EVIDENCE_MIN = 6\nMODEL_CONTRADICTION_MOS = -0.5\n\nPACKET_PREFIX = {\n    \"business\": \"qualitativePacket\",\n    \"moat\": \"qualitativePacket\",\n    \"financial\": \"financialPacket\",\n    \"valuation\": \"financialPacket\",\n}\nPACKET_PREFIXES = (\"identityPacket\", \"financialPacket\", \"qualitativePacket\")\n\n\ndef _issue(code: str, severity: str, path: str, message: str) -> Dict[str, str]:\n    return {\"code\": code, \"severity\": severity, \"path\": path, \"message\": message}\n\n\ndef _obj(value: Any) -> Dict[str, Any]:\n    return value if isinstance(value, dict) else {}\n\n\ndef _text(value: Any) -> str:\n    return str(value if value is not None else \"\").strip()\n\n\ndef _num(value: Any) -> Optional[float]:\n    if value is None or isinstance(value, bool):\n        return None\n    if isinstance(value, (int, float)):\n        return float(value) if math.isfinite(float(value)) else None\n    try:\n        return float(_text(value).replace(\",\", \"\").replace(\"$\", \"\"))\n    except ValueError:\n        return None\n\n\ndef _atomic(value: Any) -> bool:\n    return value is None or isinstance(value, (str, int, float, bool))\n\n\ndef _same(left: Any, right: Any) -> bool:\n    if isinstance(left, (int, float)) and isinstance(right, (int, float)):\n        return math.isclose(float(left), float(right), rel_tol=1e-6, abs_tol=1e-6)\n    return json.dumps(left, sort_keys=True, ensure_ascii=False) == json.dumps(right, sort_keys=True, ensure_ascii=False)\n\n\ndef _parse_json(value: Any, label: str) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:\n    if isinstance(value, dict):\n        return value, None\n    raw = _text(value)\n    if not raw:\n        return None, \"%s is empty\" % label\n    fenced = re.search(r\"```(?:json)?\\s*(\\{.*\\})\\s*```\", raw, re.S | re.I)\n    if fenced:\n        raw = fenced.group(1)\n    else:\n        start, end = raw.find(\"{\"), raw.rfind(\"}\")\n        if start >= 0 and end > start:\n            raw = raw[start : end + 1]\n    try:\n        parsed = json.loads(raw)\n    except ValueError as exc:\n        return None, \"%s is not valid JSON: %s\" % (label, exc)\n    if not isinstance(parsed, dict):\n        return None, \"%s must be a JSON object\" % label\n    return parsed, None\n\n\ndef _parts(path: str) -> List[str]:\n    return [part for part in re.sub(r\"\\[(\\d+)\\]\", r\".\\1\", str(path)).split(\".\") if part]\n\n\ndef _get(root: Any, path: str) -> Any:\n    value = root\n    for part in _parts(path):\n        if isinstance(value, list):\n            if not part.isdigit():\n                return None\n            index = int(part)\n            if index >= len(value):\n                return None\n            value = value[index]\n        elif isinstance(value, dict):\n            if part not in value:\n                return None\n            value = value[part]\n        else:\n            return None\n    return value\n\n\ndef _resolve(packet: Dict[str, Any], ref: str, dimension: str) -> Any:\n    if not ref or str(ref).startswith(\"tickerPacket.\"):\n        return None\n    if ref.split(\".\")[0] in PACKET_PREFIXES:\n        return _get(packet, ref)\n    preferred = PACKET_PREFIX.get(dimension)\n    order = ([preferred] if preferred else []) + [p for p in PACKET_PREFIXES if p != preferred]\n    for prefix in order:\n        value = _get(packet, \"%s.%s\" % (prefix, ref))\n        if value is not None:\n            return value\n    return None\n\n\ndef _score(value: Any, label: str, findings: List[Dict[str, str]]) -> int:\n    number = _num(value)\n    if number is None or number != int(number) or number < 0 or number > 100:\n        findings.append(_issue(\"SCORE_INVALID\", \"error\", label, \"score must be an integer between 0 and 100\"))\n        return 0\n    return int(number)\n\n\ndef _pct(value: float) -> str:\n    return \"%.1f%%\" % (value * 100.0)\n\n\ndef _narrative(reviews: Dict[str, Dict[str, Any]], packet: Dict[str, Any]) -> List[Dict[str, str]]:\n    findings: List[Dict[str, str]] = []\n    financial = _obj(packet.get(\"financialPacket\"))\n    market = _obj(financial.get(\"marketSnapshot\"))\n    balance = _obj(financial.get(\"balanceSheet\"))\n    annual = _obj(financial.get(\"annualHistory\"))\n    recent = _obj(financial.get(\"quarterlyMostRecent\"))\n    ttm = _obj(recent.get(\"ttm\"))\n    shares = _num(market.get(\"sharesOutstanding\")) or _num(balance.get(\"sharesOutstanding\"))\n    price = _num(market.get(\"price\"))\n    cash, debt = _num(balance.get(\"cash\")), _num(balance.get(\"totalDebt\"))\n    if debt is None:\n        debt = (_num(balance.get(\"shortTermDebt\")) or 0.0) + (_num(balance.get(\"longTermDebt\")) or 0.0)\n    annual_fcf = _num((annual.get(\"freeCashFlow\") or [None])[-1]) if annual.get(\"freeCashFlow\") else None\n    annual_ni = _num((annual.get(\"netIncome\") or [None])[-1]) if annual.get(\"netIncome\") else None\n    ttm_fcf, ttm_ni = _num(ttm.get(\"fcf\")), _num(ttm.get(\"netIncome\"))\n    pe = _num(market.get(\"pe\"))\n    net_cash = cash - debt if cash is not None and debt is not None else None\n\n    def ratio(text: str) -> Optional[float]:\n        if re.search(r\"fy\\s*2026|fiscal\\s*(?:year\\s*)?2026|10-k\", text, re.I):\n            return annual_fcf / annual_ni if annual_fcf is not None and annual_ni else None\n        return ttm_fcf / ttm_ni if ttm_fcf is not None and ttm_ni else None\n\n    def walk(value: Any, path: str) -> None:\n        if isinstance(value, str) and value.strip():\n            text = value\n            current = ratio(text)\n            num = r\"([0-9][0-9,]*(?:\\.[0-9]+)?)\"\n            for match in re.finditer(r\"fcf\\s*/\\s*ni\\s*(?:=|is|of|at|:)?\\s*\" + num + r\"\\s*%\", text, re.I):\n                stated = float(match.group(1).replace(\",\", \"\")) / 100.0\n                if current is not None and abs(stated - current) > 0.06:\n                    findings.append(_issue(\"NARRATIVE_FCF_NI_CONFLICT\", \"warning\", path, \"stated FCF/NI %s but packet implies %s\" % (_pct(stated), _pct(current))))\n            for match in re.finditer(r\"fcf\\s*/\\s*ni\\s*(?:=|is|of|at|:)?\\s*\" + num + r\"\\s*(?:x|times)\", text, re.I):\n                stated = float(match.group(1).replace(\",\", \"\"))\n                if current is not None and abs(stated - current) > 0.12:\n                    findings.append(_issue(\"NARRATIVE_FCF_NI_CONFLICT\", \"warning\", path, \"stated FCF/NI %.2fx but packet implies %.2fx\" % (stated, current)))\n            for match in re.finditer(r\"(?:free cash flow|fcf)[^.]{0,80}?\" + num + r\"\\s*(?:x|times)\\s*(?:net income|ni)\", text, re.I):\n                stated = float(match.group(1).replace(\",\", \"\"))\n                if current is not None and abs(stated - current) > 0.12:\n                    findings.append(_issue(\"NARRATIVE_FCF_NI_CONFLICT\", \"warning\", path, \"stated FCF %.2fx net income but packet implies %.2fx\" % (stated, current)))\n            for match in re.finditer(r\"(?:free cash flow|fcf)[^.]{0,100}?\\b(exceeds|exceeded|above|greater than|below|less than|under)\\b[^.]{0,60}?(?:net income|ni)\", text, re.I):\n                if current is None:\n                    continue\n                above = bool(re.search(r\"exceed|above|greater\", match.group(1), re.I))\n                if (above and current < 1.0) or ((not above) and current > 1.0):\n                    findings.append(_issue(\"NARRATIVE_FCF_NI_CONFLICT\", \"warning\", path, \"FCF direction contradicts packet ratio %.2fx\" % current))\n            if shares:\n                for match in re.finditer(r\"shares outstanding[^.]{0,50}?\" + num + r\"\\s*(billion|b|million|m)\", text, re.I):\n                    stated = float(match.group(1).replace(\",\", \"\")) * (1000.0 if match.group(2).lower() in (\"b\", \"billion\") else 1.0)\n                    if abs(stated - shares) / max(1.0, shares) > 0.06:\n                        findings.append(_issue(\"NARRATIVE_SHARES_CONFLICT\", \"warning\", path, \"stated %.0fM shares but packet has %.0fM\" % (stated, shares)))\n            if pe:\n                for match in re.finditer(r\"p/e[^.]{0,30}?\" + num + r\"\\s*x\", text, re.I):\n                    stated = float(match.group(1).replace(\",\", \"\"))\n                    if abs(stated - pe) / max(1.0, pe) > 0.10:\n                        findings.append(_issue(\"NARRATIVE_PE_CONFLICT\", \"warning\", path, \"stated P/E %.1fx but packet has %.1fx\" % (stated, pe)))\n            if net_cash is not None:\n                for match in re.finditer(r\"net cash[^.]{0,50}?\\$?\\s*(-|−)?\" + num + r\"\\s*(billion|b|million|m)\", text, re.I):\n                    sign = -1.0 if match.group(1) else 1.0\n                    stated = sign * float(match.group(2).replace(\",\", \"\")) * (1000.0 if match.group(3).lower() in (\"b\", \"billion\") else 1.0)\n                    if net_cash < 0 and stated >= 0:\n                        findings.append(_issue(\"NARRATIVE_NET_CASH_CONFLICT\", \"warning\", path, \"text says net cash %.0fM but packet has net debt %.0fM\" % (stated, abs(net_cash))))\n                    elif abs(stated - net_cash) / max(1.0, abs(net_cash)) > 0.08:\n                        findings.append(_issue(\"NARRATIVE_NET_CASH_CONFLICT\", \"warning\", path, \"stated net cash %.0fM but packet has %.0fM\" % (stated, net_cash)))\n        elif isinstance(value, list):\n            for index, item in enumerate(value):\n                walk(item, \"%s[%d]\" % (path, index))\n        elif isinstance(value, dict):\n            for key, item in value.items():\n                if key not in (\"evidence_records\", \"falsification_conditions\"):\n                    walk(item, \"%s.%s\" % (path, key))\n\n    for dimension, review in reviews.items():\n        walk(review, \"reviews.%s\" % dimension)\n    return findings\n\n\ndef _audit_evidence(reviews: Dict[str, Dict[str, Any]], packet: Dict[str, Any], findings: List[Dict[str, str]]) -> Dict[str, Any]:\n    verified: List[Dict[str, Any]] = []\n    rejected: List[Dict[str, Any]] = []\n    by_dimension = {dimension: 0 for dimension in DIMENSIONS}\n    for dimension, review in reviews.items():\n        records = review.get(\"evidence_records\") if isinstance(review.get(\"evidence_records\"), list) else []\n        for index, item in enumerate(records):\n            path = \"%s.evidence_records[%d]\" % (dimension, index)\n            if not isinstance(item, dict):\n                rejected.append({\"dimension\": dimension, \"path\": path, \"reason\": \"not an object\"})\n                continue\n            ref = item.get(\"source_ref\")\n            value = item.get(\"source_value\")\n            if not _text(item.get(\"claim\")) or not _text(ref) or value is None or not _text(item.get(\"period\")) or not _text(item.get(\"unit\")):\n                rejected.append({\"dimension\": dimension, \"path\": path, \"reason\": \"evidence fields incomplete\"})\n                continue\n            if not _atomic(value):\n                rejected.append({\"dimension\": dimension, \"path\": path, \"reason\": \"source_value must be atomic\"})\n                continue\n            resolved = _resolve(packet, _text(ref), dimension)\n            if resolved is None:\n                findings.append(_issue(\"EVIDENCE_REF_UNRESOLVED\", \"error\", path, \"source_ref cannot be resolved: %s\" % ref))\n                rejected.append({\"dimension\": dimension, \"path\": path, \"reason\": \"unresolved source_ref\"})\n                continue\n            if not _atomic(resolved):\n                findings.append(_issue(\"EVIDENCE_REF_NOT_ATOMIC\", \"error\", path, \"source_ref must point to an atomic leaf, not an array/object\"))\n                rejected.append({\"dimension\": dimension, \"path\": path, \"reason\": \"non-atomic source_ref\"})\n                continue\n            if not _same(resolved, value):\n                findings.append(_issue(\"EVIDENCE_VALUE_MISMATCH\", \"error\", path, \"source_value does not match the packet at %s\" % ref))\n                rejected.append({\"dimension\": dimension, \"path\": path, \"reason\": \"source_value mismatch\"})\n                continue\n            key = (dimension, _text(ref), json.dumps(value, sort_keys=True))\n            if any((entry[\"dimension\"], entry[\"source_ref\"], json.dumps(entry[\"source_value\"], sort_keys=True)) == key for entry in verified):\n                continue\n            verified.append({\"dimension\": dimension, \"source_ref\": _text(ref), \"source_value\": value})\n            by_dimension[dimension] += 1\n    return {\"verified\": verified, \"rejected\": rejected, \"byDimension\": by_dimension}\n\n\ndef _audit_trace_records(reviews: Dict[str, Dict[str, Any]], packet: Dict[str, Any], findings: List[Dict[str, str]]) -> None:\n    \"\"\"Validity/falsification refs must be atomic leaves too.\"\"\"\n    for dimension, review in reviews.items():\n        for label in (\"validity_basis\", \"falsification_conditions\"):\n            records = review.get(label) if isinstance(review.get(label), list) else []\n            for index, item in enumerate(records):\n                path = \"%s.%s[%d]\" % (dimension, label, index)\n                if not isinstance(item, dict):\n                    findings.append(_issue(\"TRACE_RECORD_INVALID\", \"error\", path, \"record must be an object\"))\n                    continue\n                if not _text(item.get(\"source_ref\")) or item.get(\"source_value\") is None:\n                    findings.append(_issue(\"TRACE_REF_MISSING\", \"error\", path, \"source_ref and source_value are required\"))\n                    continue\n                resolved = _resolve(packet, _text(item.get(\"source_ref\")), dimension)\n                if resolved is None:\n                    findings.append(_issue(\"TRACE_REF_UNRESOLVED\", \"error\", path, \"source_ref cannot be resolved: %s\" % item.get(\"source_ref\")))\n                elif not _atomic(resolved):\n                    findings.append(_issue(\"TRACE_REF_NOT_ATOMIC\", \"error\", path, \"source_ref must point to an atomic leaf, not an array/object\"))\n                elif not _same(resolved, item.get(\"source_value\")):\n                    findings.append(_issue(\"TRACE_VALUE_MISMATCH\", \"error\", path, \"source_value does not match the packet\"))\n                if label == \"falsification_conditions\" and not _text(item.get(\"action\")):\n                    findings.append(_issue(\"FALSIFICATION_ACTION_MISSING\", \"error\", path, \"falsification action is required\"))\n\n\ndef _model_audit(model: Dict[str, Any], packet: Dict[str, Any], findings: List[Dict[str, str]]) -> Dict[str, Any]:\n    if not model:\n        findings.append(_issue(\"MODEL_MISSING\", \"error\", \"model\", \"cloud model is required\"))\n        return {\"verdict\": \"model_missing\"}\n    market = _obj(_obj(packet.get(\"financialPacket\")).get(\"marketSnapshot\"))\n    if not model.get(\"model_ready\"):\n        findings.append(_issue(\"MODEL_NOT_READY\", \"error\", \"model\", \"model_ready is false\"))\n    for check in (model.get(\"modelChecks\") or []):\n        if isinstance(check, dict) and check.get(\"severity\") == \"error\" and not check.get(\"passed\"):\n            findings.append(_issue(\"MODEL_CHECK_FAILED\", \"error\", \"model\", \"model check failed: %s\" % check.get(\"name\")))\n    scenarios = _obj(model.get(\"scenarios\"))\n    for name, result in scenarios.items():\n        for check in (result.get(\"checks\") or []):\n            if isinstance(check, dict) and check.get(\"severity\") == \"error\" and not check.get(\"passed\"):\n                findings.append(_issue(\"MODEL_CHECK_FAILED\", \"error\", \"scenarios.%s\" % name, \"scenario check failed: %s\" % check.get(\"name\")))\n    if _text(model.get(\"ticker\")).upper() != _text(_obj(packet.get(\"identityPacket\")).get(\"ticker\")).upper():\n        findings.append(_issue(\"MODEL_TICKER_MISMATCH\", \"error\", \"model.ticker\", \"model ticker does not match packet\"))\n    if _num(model.get(\"price\")) is not None and _num(market.get(\"price\")) is not None and not _same(model.get(\"price\"), market.get(\"price\")):\n        findings.append(_issue(\"MODEL_PRICE_MISMATCH\", \"error\", \"model.price\", \"model price does not match packet\"))\n    base = _obj(scenarios.get(model.get(\"baseScenario\") or \"base\"))\n    summary = _obj(base.get(\"summary\"))\n    value = _num(summary.get(\"valuePerShare\"))\n    if value is not None and value <= 0:\n        findings.append(_issue(\"MODEL_VALUE_NON_POSITIVE\", \"warning\", \"scenarios.base.summary.valuePerShare\", \"model value is non-positive; MOS is intentionally null\"))\n    mos = _num(summary.get(\"marginOfSafetyPct\"))\n    verdict = \"model_incomplete\" if mos is None else (\"margin_of_safety_present\" if mos >= 0.3 else \"at_or_near_model_value\" if mos >= 0 else \"price_above_model_value\")\n    return {\"verdict\": verdict, \"valuePerShare\": value, \"marginOfSafetyPct\": mos, \"terminalPctOfEv\": _num(summary.get(\"terminalPctOfEv\"))}\n\n\ndef _score_reviews(reviews: Dict[str, Dict[str, Any]], evidence: Dict[str, Any], model_audit: Dict[str, Any], findings: List[Dict[str, str]]) -> Dict[str, Any]:\n    biz, moat, fin, val = reviews[\"business\"], reviews[\"moat\"], reviews[\"financial\"], reviews[\"valuation\"]\n    components = {\n        \"understandability\": _score(biz.get(\"understandability_score\"), \"business.understandability_score\", findings),\n        \"business_model\": _score(biz.get(\"business_model_score\"), \"business.business_model_score\", findings),\n        \"moat\": _score(moat.get(\"moat_score\"), \"moat.moat_score\", findings),\n        \"management_capital_allocation\": round((_score(moat.get(\"management_culture_score\"), \"moat.management_culture_score\", findings) + _score(moat.get(\"capital_allocation_score\"), \"moat.capital_allocation_score\", findings)) / 2),\n        \"financial_quality\": _score(fin.get(\"financial_quality_score\"), \"financial.financial_quality_score\", findings),\n        \"valuation_opportunity_cost\": round((_score(val.get(\"valuation_score\"), \"valuation.valuation_score\", findings) + _score(val.get(\"margin_of_safety_score\"), \"valuation.margin_of_safety_score\", findings)) / 2),\n    }\n    veto: List[str] = []\n    if biz.get(\"circle_of_competence\") == \"fail\":\n        veto.append(\"circle_of_competence_fail\")\n    for dimension in DIMENSIONS:\n        if evidence[\"byDimension\"].get(dimension, 0) == 0:\n            veto.append(\"missing_verified_evidence_%s\" % dimension)\n    if (fin.get(\"survival_risks\") or []) and _num(fin.get(\"balance_sheet_score\")) is not None and float(fin[\"balance_sheet_score\"]) < WEAK_SCORE_THRESHOLD:\n        veto.append(\"survival_risk_with_weak_balance_sheet\")\n    if (moat.get(\"governance_red_flags\") or []) and components[\"management_capital_allocation\"] < WEAK_SCORE_THRESHOLD:\n        veto.append(\"governance_red_flags_with_weak_management_score\")\n    if (fin.get(\"accounting_red_flags\") or []) and components[\"financial_quality\"] < WEAK_SCORE_THRESHOLD:\n        veto.append(\"accounting_red_flags_with_weak_financial_score\")\n    if _num(val.get(\"margin_of_safety_score\")) is not None and float(val[\"margin_of_safety_score\"]) < WEAK_SCORE_THRESHOLD:\n        veto.append(\"insufficient_margin_of_safety\")\n    if val.get(\"judgment_state\") == \"evidence_insufficient\":\n        veto.append(\"evidence_insufficient_for_valuation_anchor\")\n    if val.get(\"judgment_state\") == \"insufficient_margin_of_safety\":\n        veto.append(\"insufficient_margin_of_safety_verdict\")\n    if len(evidence[\"rejected\"]) >= EXCESSIVE_REJECTED_EVIDENCE_MIN:\n        veto.append(\"excessive_rejected_evidence\")\n    if model_audit.get(\"verdict\") == \"model_incomplete\":\n        pass  # warning already emitted; a negative model is not a veto.\n    overall = round(sum(components[key] * WEIGHTS[key] for key in WEIGHTS))\n    unknowns = []\n    for dimension in DIMENSIONS:\n        for item in (reviews[dimension].get(\"unknowns\") or []):\n            text = _text(item)\n            if text:\n                unknowns.append(text)\n    unknowns = list(dict.fromkeys(unknowns))\n    unique_veto = list(dict.fromkeys(veto))\n    audit_status = \"fail\" if \"excessive_rejected_evidence\" in unique_veto else \"vetoed\" if unique_veto else \"warn\" if evidence[\"rejected\"] or len(unknowns) > HIGH_CONFIDENCE_MAX_UNKNOWNS else \"pass\"\n    confidence = \"low\" if unique_veto else \"high\" if len(evidence[\"verified\"]) >= HIGH_CONFIDENCE_MIN_EVIDENCE and len(unknowns) <= HIGH_CONFIDENCE_MAX_UNKNOWNS else \"medium\"\n    decision = \"pass\" if unique_veto else \"watchlist\" if val.get(\"judgment_state\") == \"evidence_thin\" or biz.get(\"circle_of_competence\") == \"uncertain\" else \"deep_research\" if overall >= DEEP_RESEARCH_THRESHOLD else \"watchlist\" if overall >= WATCHLIST_THRESHOLD else \"pass\"\n    return {\"components\": components, \"overall_score\": overall, \"veto_items\": unique_veto, \"audit_status\": audit_status, \"confidence\": confidence, \"decision\": decision, \"unknowns\": unknowns}\n\n\ndef audit(inputs: Dict[str, Any]) -> Dict[str, Any]:\n    findings: List[Dict[str, str]] = []\n    packet, error = _parse_json(inputs.get(\"tickerPacket\"), \"tickerPacket\")\n    if error:\n        return {\"accepted\": False, \"findings\": [_issue(\"PACKET_NOT_JSON\", \"error\", \"tickerPacket\", error)], \"audit\": {}}\n    packet = packet or {}\n    reviews: Dict[str, Dict[str, Any]] = {}\n    for dimension in DIMENSIONS:\n        input_key = \"management\" if dimension == \"moat\" else dimension\n        review, error = _parse_json(inputs.get(input_key), input_key)\n        if error:\n            findings.append(_issue(\"REVIEW_NOT_JSON\", \"error\", dimension, error))\n            reviews[dimension] = {}\n        else:\n            reviews[dimension] = review or {}\n            if _text(review.get(\"dimension\")) and _text(review.get(\"dimension\")).lower() != dimension:\n                findings.append(_issue(\"REVIEW_DIMENSION_MISMATCH\", \"error\", dimension, \"dimension field does not match %s\" % dimension))\n    evidence = _audit_evidence(reviews, packet, findings)\n    _audit_trace_records(reviews, packet, findings)\n    for dimension in DIMENSIONS:\n        if not reviews[dimension]:\n            findings.append(_issue(\"REVIEW_MISSING\", \"error\", dimension, \"review is missing or invalid\"))\n    model = inputs.get(\"model\") if isinstance(inputs.get(\"model\"), dict) else {}\n    model_audit = _model_audit(model, packet, findings)\n    findings.extend(_narrative(reviews, packet))\n    scores = _score_reviews(reviews, evidence, model_audit, findings)\n    for veto in scores[\"veto_items\"]:\n        findings.append(_issue(\"VETO_%s\" % veto.upper(), \"error\", \"audit\", \"audit veto: %s\" % veto))\n    hard_errors = [item for item in findings if item[\"severity\"] == \"error\"]\n    accepted = not hard_errors and not scores[\"veto_items\"]\n    audit_doc = {\n        \"schemaVersion\": \"loomloom-cloud-audit/v1\",\n        \"ticker\": _text(_obj(packet.get(\"identityPacket\")).get(\"ticker\")).upper(),\n        \"accepted\": accepted,\n        \"decision\": scores[\"decision\"],\n        \"overall_score\": scores[\"overall_score\"],\n        \"component_scores\": scores[\"components\"],\n        \"confidence\": scores[\"confidence\"],\n        \"audit_status\": scores[\"audit_status\"],\n        \"veto_items\": scores[\"veto_items\"],\n        \"unknowns\": scores[\"unknowns\"],\n        \"evidence\": {\"verified\": len(evidence[\"verified\"]), \"rejected\": len(evidence[\"rejected\"]), \"byDimension\": evidence[\"byDimension\"]},\n        \"rejected_evidence\": evidence[\"rejected\"],\n        \"narrative_findings\": [item for item in findings if item[\"code\"].startswith(\"NARRATIVE_\")],\n        \"model\": model_audit,\n        \"review_summaries\": {dimension: _text(reviews[dimension].get(\"summary\")) for dimension in DIMENSIONS},\n        \"findings\": findings,\n    }\n    return {\"accepted\": accepted, \"findings\": findings, \"audit\": audit_doc, \"model\": model}\n\n\ndef main(inputs: Any) -> Dict[str, Any]:\n    if not isinstance(inputs, dict):\n        inputs = {}\n    return audit(inputs)\n\n\nif __name__ == \"__main__\":\n    import sys\n\n    print(json.dumps(main(json.load(sys.stdin)), ensure_ascii=False, indent=2))\n",
+        "inputs": {
+          "tickerPacket": {
+            "kind": "value",
+            "valueType": "string",
+            "required": true,
+            "nullable": false
+          },
+          "business": {
+            "kind": "value",
+            "valueType": "string",
+            "required": true,
+            "nullable": false
+          },
+          "management": {
+            "kind": "value",
+            "valueType": "string",
+            "required": true,
+            "nullable": false
+          },
+          "financial": {
+            "kind": "value",
+            "valueType": "string",
+            "required": true,
+            "nullable": false
+          },
+          "valuation": {
+            "kind": "value",
+            "valueType": "string",
+            "required": true,
+            "nullable": false
+          },
+          "model": {
+            "kind": "value",
+            "valueType": "object",
+            "required": true,
+            "nullable": false
+          }
+        },
+        "outputs": {
+          "accepted": {
+            "kind": "value",
+            "valueType": "boolean",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          "findings": {
+            "kind": "value",
+            "valueType": "array",
+            "schema": {
+              "type": "array"
+            }
+          },
+          "audit": {
+            "kind": "value",
+            "valueType": "object",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "model": {
+            "kind": "value",
+            "valueType": "object",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "inputBindings": {
+        "tickerPacket": {
+          "source": "templateInput",
+          "inputKey": "tickerPacket"
+        },
+        "business": {
+          "source": "stepOutput",
+          "stepId": "stp_business",
+          "portId": "output"
+        },
+        "management": {
+          "source": "stepOutput",
+          "stepId": "stp_management",
+          "portId": "output"
+        },
+        "financial": {
+          "source": "stepOutput",
+          "stepId": "stp_financial",
+          "portId": "output"
+        },
+        "valuation": {
+          "source": "stepOutput",
+          "stepId": "stp_valuation",
+          "portId": "output"
+        },
+        "model": {
+          "source": "stepOutput",
+          "stepId": "stp_model01",
+          "portId": "model"
+        }
+      }
+    },
+    {
+      "stepId": "stp_report",
+      "displayName": "Cloud Markdown research report",
+      "executionBinding": {
+        "kind": "codeProfile"
+      },
+      "dependsOn": [
+        "stp_audit1"
+      ],
+      "code": {
+        "language": "python",
+        "entrypoint": "main",
+        "source": "#!/usr/bin/env python3\n# -*- coding: utf-8 -*-\n\"\"\"Cloud report Code node for the LoomLoom v4 template.\n\nConsumes the cloud audit and model and writes a Markdown artifact. It is gated\non audit.accepted, so a rejected run never produces a report that looks clean.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport json\nfrom typing import Any, Dict, List, Optional\n\nREPORT_PATH = \"report.md\"\n\n\ndef _obj(value: Any) -> Dict[str, Any]:\n    return value if isinstance(value, dict) else {}\n\n\ndef _text(value: Any) -> str:\n    return str(value if value is not None else \"\").strip()\n\n\ndef _num(value: Any) -> Optional[float]:\n    if isinstance(value, bool) or value is None:\n        return None\n    if isinstance(value, (int, float)):\n        return float(value)\n    try:\n        return float(str(value).replace(\",\", \"\").replace(\"$\", \"\"))\n    except ValueError:\n        return None\n\n\ndef _money(value: Any) -> str:\n    number = _num(value)\n    return \"—\" if number is None else \"{:,.2f}\".format(number)\n\n\ndef _pct(value: Any) -> str:\n    number = _num(value)\n    return \"—\" if number is None else \"{:.2f}%\".format(number * 100.0)\n\n\ndef _cell(value: Any) -> str:\n    return _text(value).replace(\"|\", \"\\\\|\").replace(\"\\n\", \" \")\n\n\ndef _list(items: Any, empty: str = \"—\") -> str:\n    values = [_text(item) for item in items] if isinstance(items, list) else []\n    values = [value for value in values if value]\n    return \"\\n\".join(\"- \" + value for value in values) if values else \"- \" + empty\n\n\ndef _dimensions(value: Any) -> str:\n    if isinstance(value, dict) and value:\n        return \"\\n\".join(\"- %s: %s\" % (key, count) for key, count in value.items())\n    return \"- no dimension counts\"\n\n\ndef _scenario_table(model: Dict[str, Any]) -> str:\n    lines = [\"| Scenario | Value / share | Equity value | EV | MOS |\", \"|---|---:|---:|---:|---:|\"]\n    scenarios = _obj(model.get(\"scenarios\"))\n    for name, result in scenarios.items():\n        summary = _obj(result.get(\"summary\"))\n        lines.append(\"| %s | %s | %s | %s | %s |\" % (_cell(result.get(\"label\") or name), _money(summary.get(\"valuePerShare\")), _money(summary.get(\"equityValue\")), _money(summary.get(\"enterpriseValue\")), _pct(summary.get(\"marginOfSafetyPct\"))))\n    return \"\\n\".join(lines)\n\n\ndef render(inputs: Dict[str, Any]) -> str:\n    audit = _obj(inputs.get(\"audit\"))\n    model = _obj(inputs.get(\"model\"))\n    packet, _ = {}, None\n    try:\n        packet = json.loads(_text(inputs.get(\"tickerPacket\"))) if inputs.get(\"tickerPacket\") else {}\n    except ValueError:\n        packet = {}\n    identity = _obj(packet.get(\"identityPacket\"))\n    market = _obj(_obj(packet.get(\"financialPacket\")).get(\"marketSnapshot\"))\n    findings = audit.get(\"findings\") if isinstance(audit.get(\"findings\"), list) else []\n    errors = [item for item in findings if _obj(item).get(\"severity\") == \"error\"]\n    warnings = [item for item in findings if _obj(item).get(\"severity\") == \"warning\"]\n    ticker = _text(audit.get(\"ticker\")) or _text(identity.get(\"ticker\"))\n    lines = [\n        \"# %s | Cloud Research Report\" % (ticker or \"US equity\"),\n        \"\",\n        \"> Generated by the LoomLoom v4 cloud pipeline. Research aid only; not investment advice, target price, position size, or buy/sell instruction.\",\n        \"\",\n        \"## Batch summary\",\n        \"\",\n        \"- Cloud audit: **%s**\" % (\"accepted\" if audit.get(\"accepted\") else \"rejected\"),\n        \"- Decision tier: %s\" % (_text(audit.get(\"decision\")) or \"—\"),\n        \"- Overall score: %s/100; confidence: %s\" % (_text(audit.get(\"overall_score\")) or \"—\", _text(audit.get(\"confidence\")) or \"—\"),\n        \"- Audit status: %s\" % (_text(audit.get(\"audit_status\")) or \"—\"),\n        \"- Errors / warnings: %d / %d\" % (len(errors), len(warnings)),\n        \"\",\n        \"| Ticker | Price | Price as of | Model value/share | Model MOS | Evidence |\",\n        \"|---|---:|---|---:|---:|---:|\",\n        \"| %s | %s | %s | %s | %s | %s verified / %s rejected |\" % (\n            _cell(ticker), _money(market.get(\"price\")), _cell(market.get(\"asOf\")),\n            _money(_obj(audit.get(\"model\")).get(\"valuePerShare\")),\n            _pct(_obj(audit.get(\"model\")).get(\"marginOfSafetyPct\")),\n            _text(_obj(audit.get(\"evidence\")).get(\"verified\")),\n            _text(_obj(audit.get(\"evidence\")).get(\"rejected\")),\n        ),\n        \"\",\n        \"## Investment model\",\n        \"\",\n        \"| Scenario | Value / share | Equity value | EV | MOS |\",\n        \"|---|---:|---:|---:|---:|\",\n    ]\n    scenarios = _obj(model.get(\"scenarios\"))\n    for name, result in scenarios.items():\n        summary = _obj(result.get(\"summary\"))\n        lines.append(\"| %s | %s | %s | %s | %s |\" % (_cell(result.get(\"label\") or name), _money(summary.get(\"valuePerShare\")), _money(summary.get(\"equityValue\")), _money(summary.get(\"enterpriseValue\")), _pct(summary.get(\"marginOfSafetyPct\"))))\n    base = _obj(scenarios.get(model.get(\"baseScenario\") or \"base\"))\n    summary = _obj(base.get(\"summary\"))\n    lines.extend([\n        \"\",\n        \"- Model status: %s; engine: %s; units: %s\" % (\"ready\" if model.get(\"model_ready\") else \"not ready\", _text(model.get(\"engineVersion\")), _text(model.get(\"units\"))),\n        \"- Base value/share: %s; price: %s; MOS: %s\" % (_money(summary.get(\"valuePerShare\")), _money(summary.get(\"price\")), _pct(summary.get(\"marginOfSafetyPct\"))),\n        \"- Enterprise value: %s; equity value: %s; net debt: %s\" % (_money(summary.get(\"enterpriseValue\")), _money(summary.get(\"equityValue\")), _money(summary.get(\"netDebt\"))),\n        \"- Terminal value: %s of EV; reverse DCF implied growth: %s\" % (_pct(summary.get(\"terminalPctOfEv\")), _pct(_obj(model.get(\"reverseDcf\")).get(\"impliedAverageRevenueGrowth\"))),\n        \"\",\n        \"## Evidence\",\n        \"\",\n        \"- Verified: %s; rejected: %s\" % (_text(_obj(audit.get(\"evidence\")).get(\"verified\")), _text(_obj(audit.get(\"evidence\")).get(\"rejected\"))),\n        _dimensions(_obj(audit.get(\"evidence\")).get(\"byDimension\")),\n        \"\",\n        \"## Veto items\",\n        \"\",\n        _list(audit.get(\"veto_items\"), \"none\"),\n        \"\",\n        \"## Findings\",\n        \"\",\n    ])\n    if findings:\n        for item in findings:\n            data = _obj(item)\n            lines.append(\"- `%s` (%s) at `%s`: %s\" % (_text(data.get(\"code\")), _text(data.get(\"severity\")), _text(data.get(\"path\")), _text(data.get(\"message\"))))\n    else:\n        lines.append(\"- none\")\n    lines.extend([\"\", \"## Four-dimension summaries\", \"\"])\n    for dimension in (\"business\", \"moat\", \"financial\", \"valuation\"):\n        lines.append(\"### %s\" % dimension.title())\n        lines.append(\"\")\n        lines.append(_text(_obj(audit.get(\"review_summaries\")).get(dimension)) or \"—\")\n        lines.append(\"\")\n    lines.extend([\n        \"## Unknowns\",\n        \"\",\n        _list(audit.get(\"unknowns\"), \"none\"),\n        \"\",\n        \"## Use limits\",\n        \"\",\n        \"The cloud audit checks structure, evidence paths, narrative numbers, scoring and model self-checks. It does not prove that a source is true, that a contract will be delivered, or that a management judgment is correct. Model values are conditional arithmetic on the supplied assumptions.\",\n        \"\",\n    ])\n    return \"\\n\".join(lines)\n\n\ndef main(inputs: Any) -> Dict[str, Any]:\n    if not isinstance(inputs, dict):\n        inputs = {}\n    with open(REPORT_PATH, \"w\", encoding=\"utf-8\") as handle:\n        handle.write(render(inputs))\n    return {\"report\": REPORT_PATH}\n\n\nif __name__ == \"__main__\":\n    import sys\n\n    print(json.dumps(main(json.load(sys.stdin)), ensure_ascii=False))\n",
+        "inputs": {
+          "tickerPacket": {
+            "kind": "value",
+            "valueType": "string",
+            "required": true,
+            "nullable": false
+          },
+          "audit": {
+            "kind": "value",
+            "valueType": "object",
+            "required": true,
+            "nullable": false
+          },
+          "model": {
+            "kind": "value",
+            "valueType": "object",
+            "required": true,
+            "nullable": false
+          }
+        },
+        "outputs": {
+          "report": {
+            "kind": "artifact",
+            "mimeType": "text/markdown"
+          }
+        }
+      },
+      "inputBindings": {
+        "tickerPacket": {
+          "source": "templateInput",
+          "inputKey": "tickerPacket"
+        },
+        "audit": {
+          "source": "stepOutput",
+          "stepId": "stp_audit1",
+          "portId": "audit"
+        },
+        "model": {
+          "source": "stepOutput",
+          "stepId": "stp_audit1",
+          "portId": "model"
+        }
+      }
     }
   ],
   "workbook": {
     "instructions": [
       "One US equity per row. Supply tickerPacket (the three packets plus balanceSheet and marketCapUsd) and modelAssumptions; optionally supply asOf for freshness checks.",
-      "Step 0 is a deterministic Code node that validates the input contract. If ready=false, the five downstream steps are skipped and no model or API fees are incurred for them.",
+      "Step 0 is a deterministic Code node that validates the input contract. If ready=false, all downstream steps are skipped and no model or API fees are incurred for them.",
       "Four parallel reviews run per row when preflight passes: business model & circle of competence, moat & management, financial quality, valuation with margin of safety.",
-      "A fifth step runs deterministic Python code: integrated three-statement projection, three-scenario DCF, reverse DCF, WACC x terminal sensitivity, and an xlsx workbook artifact. Missing drivers block the model.",
-      "The local Skill audits evidence, recomputes the model, ranks rows, and emits a Markdown report. Research aid only; no target prices, position sizes, or buy/sell instructions."
+      "The model step runs deterministic Python code: integrated three-statement projection, three-scenario DCF, reverse DCF, WACC x terminal sensitivity, and an xlsx workbook artifact. Missing drivers block the model.",
+      "The audit step resolves evidence paths, checks narrative numbers, scores the four dimensions, and validates model self-checks. The report step always runs and labels the result accepted or rejected; a rejected report must not be treated as a clean result.",
+      "The local Skill remains available for optional independent recomputation, offline runs, and report customization; it is no longer required for the cloud result. Research aid only; no target prices, position sizes, or buy/sell instructions."
     ],
     "sampleRows": [
       {

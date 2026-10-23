@@ -6,7 +6,8 @@ local Skill at `../../skill/loomloom-019fad3b-8831-7986-bdd0-db4620e261b8/`.
 ## What this template does
 
 For each row (one US equity), it runs a **preflight gate**, **four parallel LLM
-reviews**, and **one deterministic model Code node**:
+reviews**, a **deterministic model Code node**, a **cloud audit Code node**, and
+a **cloud report Code node**:
 
 | Step ID | Type | Purpose | Local dimension |
 |---|---|---|---|
@@ -16,8 +17,10 @@ reviews**, and **one deterministic model Code node**:
 | `stp_financial` | capability profile | Financial quality supplement | `financial` |
 | `stp_valuation` | capability profile | Valuation with margin of safety | `valuation` |
 | `stp_model01` | `codeProfile` (`python-pure@1`) | Three-statement model + DCF + reverse DCF + sensitivity + xlsx | model audit |
+| `stp_audit1` | `codeProfile` (`python-pure@1`) | Evidence refs, narrative numbers, scores/decision, model self-checks | cloud audit |
+| `stp_report` | `codeProfile` (`python-pure@1`) | Markdown report artifact; always runs, labels accepted/rejected | cloud report |
 
-The five downstream steps declare `dependsOn: ["stp_preflight"]` and
+The four reviews and the model declare `dependsOn: ["stp_preflight"]` and
 `when: {stepId: "stp_preflight", portId: "ready", equals: true}`. If the gate
 returns `ready=false`, they are skipped without creating Attempts or incurring
 model fees.
@@ -36,6 +39,14 @@ It emits two outputs:
 - `model` — a `loomloom-investment-model/v1` object.
 - `workbook` — an xlsx artifact with Cover, Assumptions, Historical, P&L/BS/CF/DCF
   per scenario, Sensitivity, and Checks sheets.
+
+The audit step consumes the four review texts and the model. It resolves every
+evidence/falsification path, checks narrative numbers, computes the four-dimension
+score and decision, and validates model self-checks. It returns
+`accepted` / `findings` / `audit`. The report step consumes `audit` and `model`
+and writes a Markdown artifact only when `accepted=true`. Local scripts remain
+available for optional independent recomputation, but are not required to obtain
+the cloud report.
 
 ## File shape
 

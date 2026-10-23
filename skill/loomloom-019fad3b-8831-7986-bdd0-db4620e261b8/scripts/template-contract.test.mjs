@@ -48,7 +48,7 @@ test("capability steps keep a profile and model selection", async () => {
 test("code step has matching inputs/bindings and no model selection", async () => {
   const canonicalSpecV2 = await spec();
   const codeSteps = canonicalSpecV2.steps.filter((candidate) => candidate.executionBinding.kind === "codeProfile");
-  assert.equal(codeSteps.length, 2);
+  assert.equal(codeSteps.length, 4);
   const step = codeSteps.find((candidate) => candidate.stepId === "stp_model01");
   assert.ok(step);
   assert.equal(step.code.language, "python");
@@ -108,12 +108,28 @@ test("preflight gate is wired as a boolean when-condition", async () => {
   assert.deepEqual(Object.keys(preflight.code.outputs).sort(), ["findings", "ready", "summary"]);
   assert.equal(preflight.code.outputs.ready.valueType, "boolean");
   assert.equal(preflight.inputBindings.asOf.fallbackValue, "");
-  const gated = canonicalSpecV2.steps.filter((step) => step.stepId !== "stp_preflight");
-  assert.equal(gated.length, 5);
-  for (const step of gated) {
+  const directlyGated = canonicalSpecV2.steps.filter((step) => ["stp_business", "stp_management", "stp_financial", "stp_valuation", "stp_model01"].includes(step.stepId));
+  assert.equal(directlyGated.length, 5);
+  for (const step of directlyGated) {
     assert.deepEqual(step.dependsOn, ["stp_preflight"], step.stepId);
     assert.deepEqual(step.when, { stepId: "stp_preflight", portId: "ready", equals: true }, step.stepId);
   }
+  const audit = canonicalSpecV2.steps.find((step) => step.stepId === "stp_audit1");
+  assert.ok(audit);
+  assert.deepEqual(audit.dependsOn.sort(), ["stp_business", "stp_financial", "stp_management", "stp_model01", "stp_preflight", "stp_valuation"].sort());
+  assert.deepEqual(audit.when, { stepId: "stp_preflight", portId: "ready", equals: true });
+  assert.deepEqual(Object.keys(audit.code.inputs).sort(), ["business", "financial", "management", "model", "tickerPacket", "valuation"]);
+  assert.deepEqual(Object.keys(audit.code.outputs).sort(), ["accepted", "audit", "findings", "model"]);
+  assert.equal(audit.code.outputs.accepted.valueType, "boolean");
+  assert.equal(audit.inputBindings.model.source, "stepOutput");
+  assert.equal(audit.inputBindings.business.portId, "output");
+  const report = canonicalSpecV2.steps.find((step) => step.stepId === "stp_report");
+  assert.ok(report);
+  assert.deepEqual(report.dependsOn, ["stp_audit1"]);
+  assert.equal(report.when, undefined);
+  assert.equal(report.code.outputs.report.kind, "artifact");
+  assert.equal(report.code.outputs.report.mimeType, "text/markdown");
+  assert.equal(report.inputBindings.model.stepId, "stp_audit1");
   const source = await readFile(path.resolve(HERE, "..", "model", "preflight_code.py"), "utf8");
   assert.equal(preflight.code.source, source);
   assert.ok(Buffer.byteLength(preflight.code.source, "utf8") <= 65536);
@@ -128,4 +144,18 @@ test("every review prompt forbids empty-array and object citations", async () =>
   assert.ok(text.includes("Never cite an `unknowns[i]` path"), "unknowns citation rule");
   assert.ok(text.includes("quarterlyMostRecent.ttm` is an object"), "object citation rule");
   assert.ok(text.includes("falsification_conditions"), "falsification rule");
+});
+
+test("audit and report Code sources are in sync, compile and fit the limit", async () => {
+  const canonicalSpecV2 = await spec();
+  for (const [stepId, file] of [["stp_audit1", "audit_code.py"], ["stp_report", "report_code.py"]]) {
+    const step = canonicalSpecV2.steps.find((candidate) => candidate.stepId === stepId);
+    assert.ok(step, stepId);
+    const source = await readFile(path.resolve(HERE, "..", "model", file), "utf8");
+    assert.equal(step.code.source, source, stepId);
+    assert.ok(Buffer.byteLength(source, "utf8") <= 65536, stepId);
+    assert.ok(source.includes("def main("), stepId);
+    const probe = spawnSync(process.env.PYTHON || "python3", ["-c", "import sys; compile(sys.stdin.read(), '<template>', 'exec')"], { input: source, encoding: "utf8" });
+    assert.equal(probe.status, 0, probe.stderr);
+  }
 });

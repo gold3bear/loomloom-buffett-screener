@@ -9,9 +9,10 @@
 - **Three-statement + DCF model**: integrated P&L, balance sheet and cash flow;
   bear/base/bull scenarios; perpetuity or exit-multiple terminal value; reverse
   DCF; 5×5 WACC × terminal sensitivity; xlsx workbook artifact.
-- **Independent local audit**: the same Python engine is recomputed locally; the
-  merge compares cloud/local numbers within 1e-4 and vetoes mismatches. A
-  24-check cross-document invariant gate covers packet, model, workbook and audit.
+- **Cloud audit + optional local recompute**: `stp_audit1` resolves evidence
+  paths, checks narrative numbers, scores the four dimensions and validates model
+  self-checks. Local scripts remain for optional independent recomputation and a
+  25-check cross-document gate; they are no longer required for the cloud report.
 - **Report**: adds model value per share, margin of safety, terminal-value share,
   reverse-DCF implied growth, integrity checks and preflight findings.
 
@@ -30,8 +31,8 @@ v4 preflight. The v3 template remains available for non-modeling runs.
 
 ## Validation
 
-- 91 Node tests, 37 Python tests
-- Test server: template v4 `57f42b2e-5f5c-41b2-8158-512ad061fb98` (prompt allowlist)
+- 92 Node tests, 44 Python tests
+- Test server: template v6 `3c6c1fc2-3c25-49fb-9d98-67c0485cbaa0` (cloud audit + report)
 - Final NVDA run `1aa64499-6e2e-404e-b36b-7027d128d614`: preflight ready (246 checks),
   model ready, cloud/local matched, invariant gate 25/25, 17-sheet workbook,
   local audit accepted with 31 verified evidence / 5 rejected. Two narrative
@@ -40,8 +41,11 @@ v4 preflight. The v3 template remains available for non-modeling runs.
 - The equity bridge now uses opening net debt; the old terminal-net-debt values
   (AAPL `137.68`, NVDA `140.03`) are superseded by AAPL `122.81` and NVDA `114.52`.
 - The four review prompts now carry a source-ref allowlist: existing leaf paths
-  only, no `unknowns[i]` or object citations. The local audit still enforces the
-  rule because prompt-only hardening did not eliminate every bad citation.
+  only, no `unknowns[i]` or object citations. The cloud audit enforces it too;
+  prompt-only hardening did not eliminate every bad citation.
+- A v6 ORCL run `8872d2db-ca56-4ac1-a2d8-574aef0fac52` correctly rejected one
+  evidence value mismatch and produced a report explicitly labelled "rejected",
+  proving the cloud gate and report artifact work together.
 - Gating run `9464a209-fe37-44fc-abd8-a001b8434119`: invalid row returned
   `ready=false` with 3 findings, 0 artifacts, all five downstream steps skipped.
 
