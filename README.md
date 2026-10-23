@@ -227,6 +227,7 @@ A verified single-row NVDA run on 2026-10-23 completed with:
 - cloud/local model audit `matched`; invariant gate `25/25`
 - workbook 17 sheets; local audit accepted with 31 verified evidence, 5 rejected, and 2 narrative/packet conflicts
 - gating test `9464a209-fe37-44fc-abd8-a001b8434119`: a bad row returned `ready=false` with 3 findings, produced 0 artifacts, and skipped all five downstream steps
+- v7 cloud audit run `36c4e178-4db8-4f60-a9b8-2abd3f848b85`: quarantined 4 bad evidence entries, kept 42 verified, returned `accepted=true`, and produced a cloud report artifact
 - prompt v4 allowlist: normal packet produced no unresolved references; an empty-`unknowns` negative test still produced an array citation, which the local audit rejects as `must point to an atomic leaf`
 
 The earlier AAPL run `96a6542c-...` used the old terminal-net-debt bridge; its
@@ -389,7 +390,7 @@ Key results:
 
 Total out-of-pocket cost across the validation runs: **USD 1.44**.
 
-The v4 model engine has its own deterministic test suite: 44 Python tests on both
+The v4 model engine has its own deterministic test suite: 45 Python tests on both
 CPython 3.9 and 3.12 (including a workbook that opens in openpyxl and is
 byte-stable) plus 92 Node tests covering preflight, model merge, recomputation
 vetos, reporting, and the template contract. These tests do not consume cloud

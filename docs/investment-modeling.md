@@ -599,3 +599,19 @@ mismatches.
 
 The key used for this run is not stored in the repository. The CLI profile entry
 does not persist the token; it is read from `LOOMLOOM_TOKEN_SHENGSUANYUN_TEST`.
+
+
+## 14. Cloud audit/report (v7)
+
+The v7 template adds `stp_audit1` and `stp_report`. The audit consumes the four
+reviews, the model and the workbook, resolves every evidence/falsification path,
+checks narrative numbers, scores the four dimensions and validates model
+self-checks. Invalid evidence entries are quarantined (reported, not used); if a
+dimension has no verified evidence left, the audit rejects.
+
+The report step always runs and labels the result `accepted` or `rejected`. A
+v7 ORCL run `36c4e178-4db8-4f60-a9b8-2abd3f848b85` quarantined four bad evidence
+entries, kept 42 verified, returned `accepted=true`, and produced a cloud report
+with score 70 / `watchlist` and the negative-base model warning. The local
+`merge`/`check-invariants` scripts remain available for optional independent
+recomputation, but are not required for the cloud report.

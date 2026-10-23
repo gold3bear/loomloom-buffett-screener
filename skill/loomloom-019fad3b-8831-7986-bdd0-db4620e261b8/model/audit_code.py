@@ -239,22 +239,24 @@ def _audit_evidence(reviews: Dict[str, Dict[str, Any]], packet: Dict[str, Any], 
             ref = item.get("source_ref")
             value = item.get("source_value")
             if not _text(item.get("claim")) or not _text(ref) or value is None or not _text(item.get("period")) or not _text(item.get("unit")):
+                findings.append(_issue("EVIDENCE_QUARANTINED", "warning", path, "evidence fields incomplete; entry dropped, not used"))
                 rejected.append({"dimension": dimension, "path": path, "reason": "evidence fields incomplete"})
                 continue
             if not _atomic(value):
+                findings.append(_issue("EVIDENCE_QUARANTINED", "warning", path, "source_value is not atomic; entry dropped"))
                 rejected.append({"dimension": dimension, "path": path, "reason": "source_value must be atomic"})
                 continue
             resolved = _resolve(packet, _text(ref), dimension)
             if resolved is None:
-                findings.append(_issue("EVIDENCE_REF_UNRESOLVED", "error", path, "source_ref cannot be resolved: %s" % ref))
+                findings.append(_issue("EVIDENCE_QUARANTINED", "warning", path, "source_ref cannot be resolved (%s); entry dropped" % ref))
                 rejected.append({"dimension": dimension, "path": path, "reason": "unresolved source_ref"})
                 continue
             if not _atomic(resolved):
-                findings.append(_issue("EVIDENCE_REF_NOT_ATOMIC", "error", path, "source_ref must point to an atomic leaf, not an array/object"))
+                findings.append(_issue("EVIDENCE_QUARANTINED", "warning", path, "source_ref is not an atomic leaf; entry dropped"))
                 rejected.append({"dimension": dimension, "path": path, "reason": "non-atomic source_ref"})
                 continue
             if not _same(resolved, value):
-                findings.append(_issue("EVIDENCE_VALUE_MISMATCH", "error", path, "source_value does not match the packet at %s" % ref))
+                findings.append(_issue("EVIDENCE_QUARANTINED", "warning", path, "source_value does not match the packet at %s; entry dropped" % ref))
                 rejected.append({"dimension": dimension, "path": path, "reason": "source_value mismatch"})
                 continue
             key = (dimension, _text(ref), json.dumps(value, sort_keys=True))
@@ -262,6 +264,9 @@ def _audit_evidence(reviews: Dict[str, Dict[str, Any]], packet: Dict[str, Any], 
                 continue
             verified.append({"dimension": dimension, "source_ref": _text(ref), "source_value": value})
             by_dimension[dimension] += 1
+    for dimension in DIMENSIONS:
+        if by_dimension.get(dimension, 0) == 0:
+            findings.append(_issue("NO_VERIFIED_EVIDENCE_%s" % dimension.upper(), "error", dimension, "no verified evidence remains after quarantine"))
     return {"verified": verified, "rejected": rejected, "byDimension": by_dimension}
 
 
@@ -287,6 +292,45 @@ def _audit_trace_records(reviews: Dict[str, Dict[str, Any]], packet: Dict[str, A
                     findings.append(_issue("TRACE_VALUE_MISMATCH", "error", path, "source_value does not match the packet"))
                 if label == "falsification_conditions" and not _text(item.get("action")):
                     findings.append(_issue("FALSIFICATION_ACTION_MISSING", "error", path, "falsification action is required"))
+
+
+def _artifact_path(value: Any) -> Optional[str]:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list) and value:
+        return _artifact_path(value[0])
+    if isinstance(value, dict):
+        for key in ("path", "file", "filePath", "filename"):
+            if isinstance(value.get(key), str):
+                return value[key]
+    return None
+
+
+def _audit_workbook(workbook: Any, findings: List[Dict[str, str]]) -> Dict[str, Any]:
+    """Structural check of the xlsx artifact (sheet names/count), not cell values."""
+    import zipfile
+
+    path = _artifact_path(workbook)
+    if not path:
+        return {"present": False}
+    try:
+        with zipfile.ZipFile(path) as archive:
+            names = set(archive.namelist())
+            if "xl/workbook.xml" not in names:
+                findings.append(_issue("WORKBOOK_INVALID", "error", "workbook", "xl/workbook.xml is missing"))
+                return {"present": True, "sheets": 0}
+            workbook_xml = archive.read("xl/workbook.xml").decode("utf-8", "replace")
+    except Exception as exc:
+        findings.append(_issue("WORKBOOK_INVALID", "error", "workbook", "cannot open workbook: %s" % exc))
+        return {"present": True, "sheets": 0}
+    sheets = re.findall(r'<sheet[^>]+name="([^"]+)"', workbook_xml)
+    required = ("Cover", "Assumptions", "Historical", "Sensitivity", "Checks")
+    missing = [name for name in required if name not in sheets]
+    if missing:
+        findings.append(_issue("WORKBOOK_SHEETS_MISSING", "error", "workbook", "missing sheets: %s" % ", ".join(missing)))
+    if len(sheets) < 15:
+        findings.append(_issue("WORKBOOK_TOO_FEW_SHEETS", "warning", "workbook", "only %d sheets; expected at least 15" % len(sheets)))
+    return {"present": True, "sheets": len(sheets), "names": sheets[:40]}
 
 
 def _model_audit(model: Dict[str, Any], packet: Dict[str, Any], findings: List[Dict[str, str]]) -> Dict[str, Any]:
@@ -389,6 +433,7 @@ def audit(inputs: Dict[str, Any]) -> Dict[str, Any]:
             findings.append(_issue("REVIEW_MISSING", "error", dimension, "review is missing or invalid"))
     model = inputs.get("model") if isinstance(inputs.get("model"), dict) else {}
     model_audit = _model_audit(model, packet, findings)
+    workbook_audit = _audit_workbook(inputs.get("workbook"), findings)
     findings.extend(_narrative(reviews, packet))
     scores = _score_reviews(reviews, evidence, model_audit, findings)
     for veto in scores["veto_items"]:
@@ -410,6 +455,7 @@ def audit(inputs: Dict[str, Any]) -> Dict[str, Any]:
         "rejected_evidence": evidence["rejected"],
         "narrative_findings": [item for item in findings if item["code"].startswith("NARRATIVE_")],
         "model": model_audit,
+        "workbook": workbook_audit,
         "review_summaries": {dimension: _text(reviews[dimension].get("summary")) for dimension in DIMENSIONS},
         "findings": findings,
     }

@@ -77,7 +77,7 @@ class AuditTests(unittest.TestCase):
         data["moat"]["evidence_records"][0]["source_ref"] = "qualitativePacket.unknowns[0]"
         result = audit(data)
         self.assertFalse(result["accepted"])
-        self.assertTrue(any(item["code"] == "EVIDENCE_REF_UNRESOLVED" for item in result["findings"]))
+        self.assertTrue(any(item["code"] == "NO_VERIFIED_EVIDENCE_MOAT" for item in result["findings"]))
 
     def test_object_reference_is_rejected(self):
         data = reviews()
@@ -85,7 +85,7 @@ class AuditTests(unittest.TestCase):
         data["moat"]["evidence_records"][0]["source_value"] = "Sells software"
         result = audit(data)
         self.assertFalse(result["accepted"])
-        self.assertTrue(any(item["code"] == "EVIDENCE_REF_NOT_ATOMIC" for item in result["findings"]))
+        self.assertTrue(any(item["code"] == "NO_VERIFIED_EVIDENCE_MOAT" for item in result["findings"]))
 
     def test_array_falsification_reference_is_rejected(self):
         data = reviews()
@@ -93,6 +93,15 @@ class AuditTests(unittest.TestCase):
         result = audit(data)
         self.assertFalse(result["accepted"])
         self.assertTrue(any(item["code"] == "TRACE_REF_NOT_ATOMIC" for item in result["findings"]))
+
+    def test_bad_evidence_is_quarantined_when_a_valid_one_remains(self):
+        data = reviews()
+        data["moat"]["evidence_records"].append({"claim": "price", "source_ref": "financialPacket.marketSnapshot.price", "source_value": 100, "period": "2026-10-22", "unit": "USD"})
+        data["moat"]["evidence_records"][0]["source_value"] = "wrong text"
+        result = audit(data)
+        self.assertTrue(result["accepted"], result["findings"])
+        self.assertTrue(any(item["code"] == "EVIDENCE_QUARANTINED" for item in result["findings"]))
+        self.assertGreaterEqual(result["audit"]["evidence"]["byDimension"]["moat"], 1)
 
     def test_narrative_conflict_is_a_warning(self):
         data = reviews()
@@ -118,7 +127,8 @@ class ReportTests(unittest.TestCase):
             try:
                 out = report_code.main({"tickerPacket": json.dumps(packet()), "audit": result["audit"], "model": model()})
                 self.assertEqual(out["report"], "report.md")
-                text = open("report.md", encoding="utf-8").read()
+                with open("report.md", encoding="utf-8") as handle:
+                    text = handle.read()
                 self.assertIn("# TEST | Cloud Research Report", text)
                 self.assertIn("## Investment model", text)
                 self.assertIn("## Evidence", text)

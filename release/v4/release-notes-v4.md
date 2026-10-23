@@ -31,8 +31,8 @@ v4 preflight. The v3 template remains available for non-modeling runs.
 
 ## Validation
 
-- 92 Node tests, 44 Python tests
-- Test server: template v6 `3c6c1fc2-3c25-49fb-9d98-67c0485cbaa0` (cloud audit + report)
+- 92 Node tests, 45 Python tests
+- Test server: template v7 `cd59ab7c-7abd-4860-83bb-c155a43cc4e7` (quarantine repair + cloud report)
 - Final NVDA run `1aa64499-6e2e-404e-b36b-7027d128d614`: preflight ready (246 checks),
   model ready, cloud/local matched, invariant gate 25/25, 17-sheet workbook,
   local audit accepted with 31 verified evidence / 5 rejected. Two narrative
@@ -44,8 +44,10 @@ v4 preflight. The v3 template remains available for non-modeling runs.
   only, no `unknowns[i]` or object citations. The cloud audit enforces it too;
   prompt-only hardening did not eliminate every bad citation.
 - A v6 ORCL run `8872d2db-ca56-4ac1-a2d8-574aef0fac52` correctly rejected one
-  evidence value mismatch and produced a report explicitly labelled "rejected",
-  proving the cloud gate and report artifact work together.
+  evidence value mismatch and produced a report explicitly labelled "rejected".
+- A v7 ORCL run `36c4e178-4db8-4f60-a9b8-2abd3f848b85` quarantined four bad
+  evidence entries, kept 42 verified, returned `accepted=true`, and produced a
+  report labelled "accepted" with warnings.
 - Gating run `9464a209-fe37-44fc-abd8-a001b8434119`: invalid row returned
   `ready=false` with 3 findings, 0 artifacts, all five downstream steps skipped.
 
