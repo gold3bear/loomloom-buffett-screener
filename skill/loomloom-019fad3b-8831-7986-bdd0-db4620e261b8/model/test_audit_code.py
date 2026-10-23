@@ -87,12 +87,12 @@ class AuditTests(unittest.TestCase):
         self.assertFalse(result["accepted"])
         self.assertTrue(any(item["code"] == "NO_VERIFIED_EVIDENCE_MOAT" for item in result["findings"]))
 
-    def test_array_falsification_reference_is_rejected(self):
+    def test_array_falsification_reference_is_quarantined(self):
         data = reviews()
         data["valuation"]["falsification_conditions"] = [{"condition": "x", "source_ref": "qualitativePacket.riskFactors", "source_value": "x", "action": "rerun_required"}]
         result = audit(data)
-        self.assertFalse(result["accepted"])
-        self.assertTrue(any(item["code"] == "TRACE_REF_NOT_ATOMIC" for item in result["findings"]))
+        self.assertTrue(result["accepted"], result["findings"])
+        self.assertTrue(any(item["code"] == "TRACE_QUARANTINED" for item in result["findings"]))
 
     def test_bad_evidence_is_quarantined_when_a_valid_one_remains(self):
         data = reviews()

@@ -612,6 +612,9 @@ dimension has no verified evidence left, the audit rejects.
 The report step always runs and labels the result `accepted` or `rejected`. A
 v7 ORCL run `36c4e178-4db8-4f60-a9b8-2abd3f848b85` quarantined four bad evidence
 entries, kept 42 verified, returned `accepted=true`, and produced a cloud report
-with score 70 / `watchlist` and the negative-base model warning. The local
+with score 70 / `watchlist`. A v9 NVDA run
+`c471e654-57c6-4af9-971f-0aa0f693d044` quarantined three evidence entries and one
+trace record, kept 35 verified, returned `accepted=true`, and produced a cloud
+report with score 82 / `watchlist`. The local
 `merge`/`check-invariants` scripts remain available for optional independent
 recomputation, but are not required for the cloud report.

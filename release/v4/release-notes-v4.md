@@ -32,7 +32,7 @@ v4 preflight. The v3 template remains available for non-modeling runs.
 ## Validation
 
 - 92 Node tests, 45 Python tests
-- Test server: template v7 `cd59ab7c-7abd-4860-83bb-c155a43cc4e7` (quarantine repair + cloud report)
+- Test server: template v9 `7ca2a5d6-dbd7-4e4f-85c1-004d1456bd44` (quarantine repair + cloud report)
 - Final NVDA run `1aa64499-6e2e-404e-b36b-7027d128d614`: preflight ready (246 checks),
   model ready, cloud/local matched, invariant gate 25/25, 17-sheet workbook,
   local audit accepted with 31 verified evidence / 5 rejected. Two narrative
@@ -48,6 +48,9 @@ v4 preflight. The v3 template remains available for non-modeling runs.
 - A v7 ORCL run `36c4e178-4db8-4f60-a9b8-2abd3f848b85` quarantined four bad
   evidence entries, kept 42 verified, returned `accepted=true`, and produced a
   report labelled "accepted" with warnings.
+- A v9 NVDA run `c471e654-57c6-4af9-971f-0aa0f693d044` quarantined three
+  evidence entries and one trace record, kept 35 verified, returned
+  `accepted=true`, and produced a cloud report (score 82 / watchlist).
 - Gating run `9464a209-fe37-44fc-abd8-a001b8434119`: invalid row returned
   `ready=false` with 3 findings, 0 artifacts, all five downstream steps skipped.
 

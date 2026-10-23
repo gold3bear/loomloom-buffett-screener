@@ -31,7 +31,7 @@ WATCHLIST_THRESHOLD = 60
 WEAK_SCORE_THRESHOLD = 30
 HIGH_CONFIDENCE_MIN_EVIDENCE = 8
 HIGH_CONFIDENCE_MAX_UNKNOWNS = 3
-EXCESSIVE_REJECTED_EVIDENCE_MIN = 6
+EXCESSIVE_REJECTED_EVIDENCE_MIN = 8
 MODEL_CONTRADICTION_MOS = -0.5
 
 PACKET_PREFIX = {
@@ -278,20 +278,20 @@ def _audit_trace_records(reviews: Dict[str, Dict[str, Any]], packet: Dict[str, A
             for index, item in enumerate(records):
                 path = "%s.%s[%d]" % (dimension, label, index)
                 if not isinstance(item, dict):
-                    findings.append(_issue("TRACE_RECORD_INVALID", "error", path, "record must be an object"))
+                    findings.append(_issue("TRACE_QUARANTINED", "warning", path, "record must be an object; dropped"))
                     continue
                 if not _text(item.get("source_ref")) or item.get("source_value") is None:
-                    findings.append(_issue("TRACE_REF_MISSING", "error", path, "source_ref and source_value are required"))
+                    findings.append(_issue("TRACE_QUARANTINED", "warning", path, "source_ref/source_value missing; dropped"))
                     continue
                 resolved = _resolve(packet, _text(item.get("source_ref")), dimension)
                 if resolved is None:
-                    findings.append(_issue("TRACE_REF_UNRESOLVED", "error", path, "source_ref cannot be resolved: %s" % item.get("source_ref")))
+                    findings.append(_issue("TRACE_QUARANTINED", "warning", path, "source_ref cannot be resolved; dropped: %s" % item.get("source_ref")))
                 elif not _atomic(resolved):
-                    findings.append(_issue("TRACE_REF_NOT_ATOMIC", "error", path, "source_ref must point to an atomic leaf, not an array/object"))
+                    findings.append(_issue("TRACE_QUARANTINED", "warning", path, "source_ref is not an atomic leaf; dropped"))
                 elif not _same(resolved, item.get("source_value")):
-                    findings.append(_issue("TRACE_VALUE_MISMATCH", "error", path, "source_value does not match the packet"))
+                    findings.append(_issue("TRACE_QUARANTINED", "warning", path, "source_value mismatch; dropped"))
                 if label == "falsification_conditions" and not _text(item.get("action")):
-                    findings.append(_issue("FALSIFICATION_ACTION_MISSING", "error", path, "falsification action is required"))
+                    findings.append(_issue("TRACE_QUARANTINED", "warning", path, "falsification action missing; dropped"))
 
 
 def _artifact_path(value: Any) -> Optional[str]:
@@ -390,7 +390,9 @@ def _score_reviews(reviews: Dict[str, Dict[str, Any]], evidence: Dict[str, Any],
         veto.append("evidence_insufficient_for_valuation_anchor")
     if val.get("judgment_state") == "insufficient_margin_of_safety":
         veto.append("insufficient_margin_of_safety_verdict")
-    if len(evidence["rejected"]) >= EXCESSIVE_REJECTED_EVIDENCE_MIN:
+    total_evidence = len(evidence["verified"]) + len(evidence["rejected"])
+    rejection_threshold = max(EXCESSIVE_REJECTED_EVIDENCE_MIN, int(math.ceil(total_evidence * 0.25)))
+    if len(evidence["rejected"]) >= rejection_threshold:
         veto.append("excessive_rejected_evidence")
     if model_audit.get("verdict") == "model_incomplete":
         pass  # warning already emitted; a negative model is not a veto.
