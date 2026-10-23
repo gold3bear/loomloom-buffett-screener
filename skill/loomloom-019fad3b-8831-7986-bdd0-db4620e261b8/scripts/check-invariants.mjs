@@ -141,6 +141,23 @@ export function checkInvariants({ packets, assumptions = null, model = null, aud
     const missingFields = finiteFields.filter((field) => summary[field] === undefined);
     checks.push(check("model.baseSummaryFinite", "error", badFields.length === 0 && missingFields.length === 0, badFields.length || missingFields.length ? `bad=${badFields.join(",")} missing=${missingFields.join(",")}` : "all summary fields finite"));
 
+    const opening = asObject(model.openingBalanceSheet) ?? {};
+    const openingNetDebt = Number(opening.debt ?? 0) - Number(opening.cash ?? 0);
+    const bridgeFailures = Object.entries(scenarios).filter(([, scenario]) => {
+      const entry = asObject(scenario?.summary) ?? {};
+      return !closeNumber(entry.netDebt, openingNetDebt, 1e-6) || !closeNumber(entry.equityValue, Number(entry.enterpriseValue ?? 0) - openingNetDebt, 1e-6);
+    });
+    checks.push(
+      check(
+        "model.equityBridgeUsesOpeningNetDebt",
+        "error",
+        bridgeFailures.length === 0,
+        bridgeFailures.length
+          ? `scenarios ${bridgeFailures.map(([name]) => name).join(", ")} do not use opening net debt ${openingNetDebt}`
+          : `all scenarios use opening net debt ${openingNetDebt}`,
+      ),
+    );
+
     const scenarioChecks = Object.entries(scenarios).flatMap(([name, scenario]) => (scenario?.checks ?? []).map((entry) => ({ ...entry, scenario: name })));
     const failedScenarioChecks = scenarioChecks.filter((entry) => entry.severity === "error" && !entry.passed);
     checks.push(check("model.scenarioChecksPassed", "error", failedScenarioChecks.length === 0, failedScenarioChecks.length ? failedScenarioChecks.map((entry) => `${entry.scenario}.${entry.name}`).join("; ") : `${scenarioChecks.length} scenario checks passed`));

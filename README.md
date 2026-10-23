@@ -219,14 +219,18 @@ bash scripts/dev/test-env.sh check ../../templates/buffett-four-filters-model.co
 See [docs/investment-modeling.md](docs/investment-modeling.md) for the full
 walkthrough, including `create`, `run`, and how to read `result-rows`.
 
-A verified single-row AAPL run on 2026-10-22 completed with:
+A verified single-row NVDA run on 2026-10-23 completed with:
 
-- template `03cc5781-ddca-40e3-a9df-ccf1fe626447`, version 2 `b2342e4b-83d6-4111-854b-d061db9f2d06`
-- final run `96a6542c-c121-4ce0-9091-2bc572e4f638`, actual cost `0.0182364 CNY`
-- cloud preflight passed `229` checks; cloud model ready, engine `1.1.0`, base value `137.681532`, MOS `-60.15%`
-- cloud/local model audit `matched`; invariant gate `24/24`
-- workbook 17 sheets; local audit accepted with 32 verified evidence and 0 rejected
+- template `03cc5781-ddca-40e3-a9df-ccf1fe626447`, version 3 `b1a5c31b-9b10-44dc-93c9-a4dca7b5ef60`
+- final run `e56ef83b-6c9e-4ed2-ae3a-4f0ab0b3b82d`, actual cost `0.0196023 CNY`
+- cloud preflight passed `234` checks; cloud model ready, engine `1.1.0`, base value `114.517132`, MOS `-93.83%`
+- cloud/local model audit `matched`; invariant gate `25/25`
+- workbook 17 sheets; local audit accepted with 29 verified evidence and 3 rejected
 - gating test `9464a209-fe37-44fc-abd8-a001b8434119`: a bad row returned `ready=false` with 3 findings, produced 0 artifacts, and skipped all five downstream steps
+
+The earlier AAPL run `96a6542c-...` used the old terminal-net-debt bridge; its
+values are historical and not comparable. The corrected AAPL local value is
+`122.813487` per share.
 
 The token is not stored in the repository.
 
@@ -384,7 +388,7 @@ Key results:
 
 Total out-of-pocket cost across the validation runs: **USD 1.44**.
 
-The v4 model engine has its own deterministic test suite: 36 Python tests on both
+The v4 model engine has its own deterministic test suite: 37 Python tests on both
 CPython 3.9 and 3.12 (including a workbook that opens in openpyxl and is
 byte-stable) plus 78 Node tests covering preflight, model merge, recomputation
 vetos, reporting, and the template contract. These tests do not consume cloud

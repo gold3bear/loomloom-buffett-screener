@@ -61,6 +61,15 @@ class GoldenCaseTests(unittest.TestCase):
                 if check["severity"] == "error":
                     self.assertTrue(check["passed"], check)
 
+    def test_equity_bridge_uses_opening_net_debt(self):
+        model = build()
+        opening = model["openingBalanceSheet"]
+        opening_net_debt = opening["debt"] - opening["cash"]
+        for name, result in model["scenarios"].items():
+            summary = result["summary"]
+            self.assertAlmostEqual(summary["netDebt"], opening_net_debt, places=6, msg=name)
+            self.assertAlmostEqual(summary["equityValue"], summary["enterpriseValue"] - opening_net_debt, places=4, msg=name)
+
     def test_scenario_ordering_is_monotonic(self):
         model = build()
         bear = model["scenarios"]["bear"]["summary"]["valuePerShare"]

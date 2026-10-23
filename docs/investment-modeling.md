@@ -436,7 +436,7 @@ node scripts/render-report.mjs --input audit.json --output report.md
 ### Scenario summary
 
 ```text
-Base: EV 1,887,640 | net debt 55,000 | equity 1,832,640 | value/share 123.83 | price 220.50 | MOS -78.1%
+Base: EV 1,887,640 | net debt 70,000 | equity 1,817,640 | value/share 122.81 | price 220.50 | MOS -79.5%
 ```
 
 All figures are in the declared unit (normally USD millions), except per-share
@@ -545,26 +545,33 @@ published Listing.
 
 ---
 
-## 13. Verified test run (2026-10-22)
+## 13. Verified test run (2026-10-23)
 
-A single-row AAPL run on the controlled test server completed end to end:
+A single-row NVDA run on the controlled test server completed end to end after
+the equity-bridge fix:
 
 | Item | Value |
 |---|---|
 | Server | `https://loomloom-test.shengsuanyun.com/loom/v1` |
 | Template | `03cc5781-ddca-40e3-a9df-ccf1fe626447` |
-| Version | `b2342e4b-83d6-4111-854b-d061db9f2d06` (v2, preflight gate) |
-| Final run | `96a6542c-c121-4ce0-9091-2bc572e4f638` |
-| Estimated / actual cost | `0.0332747` / `0.0182364` CNY |
+| Version | `b1a5c31b-9b10-44dc-93c9-a4dca7b5ef60` (v3, opening-net-debt bridge) |
+| Final run | `e56ef83b-6c9e-4ed2-ae3a-4f0ab0b3b82d` |
+| Estimated / actual cost | `0.0372652` / `0.0196023` CNY |
 | Status | completed, 1/1 tasks |
-| Cloud preflight | `ready=true`, 229 checks, 0 errors |
+| Cloud preflight | `ready=true`, 234 checks, 0 errors |
 | Cloud model | `model_ready=true`, engine `1.1.0` |
-| Base value / price / MOS | `137.681532` / `220.50` / `-60.15%` |
-| Model invariants | 4/4 passed |
+| Base value / price / MOS | `114.517132` / `221.97` / `-93.83%` |
+| Scenario values | Bear `57.469632` / Base `114.517132` / Bull `196.802551` |
+| Model checks | 7/7 scenario integrity checks, 2/2 model invariants |
 | Cloud vs local | `matched` |
-| Invariant gate | 24/24 error checks passed |
+| Invariant gate | 25/25 error checks passed |
 | Workbook | 17 sheets, opened with openpyxl |
-| Local audit | accepted, overall 86, decision `watchlist`, 32 verified evidence, 0 rejected |
+| Local audit | accepted, overall 82, decision `watchlist`, 29 verified evidence, 3 rejected |
+
+The earlier AAPL run `96a6542c-...` and the archived AAPL values were produced
+with the old `Debt_N - Cash_N` bridge. They are retained only as history and are
+not comparable with v3 numbers. The corrected AAPL local value is `122.813487`
+per share, not `137.681532`.
 
 A second run, `9464a209-fe37-44fc-abd8-a001b8434119`, submitted two rows (one
 valid, one deliberately broken: stale price, +5% market cap, C-tier moat fact).

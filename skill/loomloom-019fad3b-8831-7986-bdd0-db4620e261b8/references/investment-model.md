@@ -205,10 +205,14 @@ Valuation bridge:
 
 ```
 EV            = Σ PV(FCFF_t) + PV(TerminalValue)
-NetDebt       = Debt_N - Cash_N
+NetDebt       = Debt_0 - Cash_0
 EquityValue   = EV - NetDebt
 ValuePerShare = EquityValue / SharesOutstanding
 MOS           = (ValuePerShare - Price) / ValuePerShare
+
+`NetDebt` uses the **opening** balance sheet. FCFF already includes the cash
+generated and debt repaid during the explicit forecast; using `Debt_N - Cash_N`
+would double-count that accumulated cash.
 ```
 
 `MOS` is reported as a fraction; the report renders it as a percentage.

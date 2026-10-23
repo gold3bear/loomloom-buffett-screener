@@ -603,7 +603,10 @@ def _run_scenario(
         terminal_label = "%s x %.4f" % (scenario.get("exitMultipleBasis", "ebit").upper(), multiple)
     pv_terminal = terminal_value / ((1.0 + wacc) ** years)
     enterprise_value = pv_explicit + pv_terminal
-    net_debt = last["debt"] - last["cash"]
+    # Equity bridge uses the OPENING balance sheet. FCFF already captures the
+    # cash generated (and debt repaid) during the explicit forecast, so using
+    # terminal net debt would double-count that accumulated cash.
+    net_debt = opening["debt"] - opening["cash"]
     equity_value = enterprise_value - net_debt
     value_per_share = _safe_div(equity_value, opening["sharesOutstanding"])
     margin_of_safety = None
@@ -625,6 +628,7 @@ def _run_scenario(
         {"name": "equityRollsForward", "severity": "error", "passed": equity_tie <= 1e-3, "detail": "ending equity equals opening equity plus net income less distributions (gap %.10f)" % equity_tie},
         {"name": "fcffRecomputes", "severity": "error", "passed": fcff_tie <= 1e-3, "detail": "FCFF equals NOPAT + D&A - capex - change in NWC (max gap %.10f)" % fcff_tie},
         {"name": "dcfComponentsReconcile", "severity": "error", "passed": ev_tie <= 1e-2, "detail": "enterprise value equals the displayed PV(FCFF) plus PV(terminal) (gap %.10f)" % ev_tie},
+        {"name": "equityBridgeUsesOpeningNetDebt", "severity": "error", "passed": abs(equity_value - (enterprise_value - (opening["debt"] - opening["cash"]))) <= max(0.01, abs(enterprise_value) * 1e-9), "detail": "equity value must use opening net debt, not terminal net debt"},
         {"name": "waccExceedsTerminalGrowth", "severity": "error", "passed": method != "perpetuity" or wacc > scenario["terminalGrowth"], "detail": "wacc=%.4f, terminal=%.4f" % (wacc, scenario.get("terminalGrowth", 0.0))},
         {"name": "terminalValueNotDominant", "severity": "warning", "passed": terminal_share is None or terminal_share <= 0.85, "detail": "terminal value is %.2f%% of enterprise value" % ((terminal_share or 0.0) * 100.0)},
     ]

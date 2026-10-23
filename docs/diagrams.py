@@ -251,8 +251,8 @@ def build_pipeline():
         1070,
         520,
         150,
-        "本次实跑（2026-10-22）",
-        "AAPL · overall 86 · watchlist\ncloud/local matched · gate 24/24\n实际费用 0.0176 CNY · 17-sheet xlsx",
+        "本次实跑（2026-10-23）",
+        "NVDA · overall 82 · watchlist\ncloud/local matched · gate 25/25\n实际费用 0.0196 CNY · 17-sheet xlsx",
         GREEN,
         title_size=22,
     )
