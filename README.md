@@ -231,6 +231,7 @@ A verified single-row NVDA run on 2026-10-23 completed with:
 - v7 ORCL cloud audit run `36c4e178-4db8-4f60-a9b8-2abd3f848b85`: quarantined 4 bad evidence entries, kept 42 verified, returned `accepted=true`, and produced a cloud report artifact
 - v9 NVDA cloud audit run `c471e654-57c6-4af9-971f-0aa0f693d044`: quarantined 3 bad evidence entries and 1 trace record, kept 35 verified, returned `accepted=true`, and produced a cloud report artifact
 - retry v3 ORCL run `82b553b8-4025-4923-9643-007d16562b70`: Loop accepted in 1 iteration, cloud audit accepted, 45 verified / 6 quarantined, score 71
+- retry v3 NVDA run `fcb051ff-1082-44ec-85c0-1e546b9271a4`: Loop accepted in 1 iteration, cloud audit accepted, 50 verified / 0 quarantined, score 83
 - prompt v4 allowlist: normal packet produced no unresolved references; an empty-`unknowns` negative test still produced an array citation, which the local audit rejects as `must point to an atomic leaf`
 
 The earlier AAPL run `96a6542c-...` used the old terminal-net-debt bridge; its

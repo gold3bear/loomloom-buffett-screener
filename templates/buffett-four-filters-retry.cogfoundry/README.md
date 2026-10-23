@@ -72,6 +72,10 @@ unaffected and still uses the outer template inputs.
 - Cloud audit: `accepted=true`, score 71, `watchlist`
 - Evidence: 45 verified / 6 quarantined
 - Artifacts: workbook + report
+- NVDA run `fcb051ff-1082-44ec-85c0-1e546b9271a4`: accepted iteration 1,
+  50 verified / 0 quarantined, score 83
+- Watch-level estimatedCost was `7.5245912 CNY` for both retry runs, versus
+  about `0.05 CNY` for stable v9; confirm billing before production use
 
 ## Known limits
 

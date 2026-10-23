@@ -72,3 +72,9 @@ Verified on test template `c02a59e5-418b-4827-97a5-303b0cc8be67` v3
 `3241d088-9f97-4559-80b1-78ff206db9b2`, run
 `82b553b8-4025-4923-9643-007d16562b70`: Loop accepted iteration 1, audit
 accepted, 45 verified / 6 quarantined, score 71.
+
+NVDA retry parity: run `fcb051ff-1082-44ec-85c0-1e546b9271a4` also accepted
+in iteration 1 (50 verified / 0 quarantined, score 83). The watch-level
+estimatedCost was `7.5245912 CNY` for both retry runs, versus about `0.05 CNY`
+for the stable v9 runs; this looks like a flat Loop fee and needs billing
+confirmation before using the retry template in production.

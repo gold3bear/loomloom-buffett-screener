@@ -636,4 +636,7 @@ fixed because Loop cost topology requires a static model ID.
 Verified run: template `c02a59e5-418b-4827-97a5-303b0cc8be67` v3
 `3241d088-9f97-4559-80b1-78ff206db9b2`, run
 `82b553b8-4025-4923-9643-007d16562b70`; Loop accepted in 1 iteration, audit
-accepted, 45 verified / 6 quarantined, score 71.
+accepted, 45 verified / 6 quarantined, score 71. NVDA run
+`fcb051ff-1082-44ec-85c0-1e546b9271a4` also accepted in iteration 1 with 50
+verified / 0 quarantined and score 83; the watch estimatedCost was
+`7.5245912 CNY` for both retry runs, versus about `0.05 CNY` for stable v9.
