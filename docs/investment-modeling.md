@@ -618,3 +618,22 @@ trace record, kept 35 verified, returned `accepted=true`, and produced a cloud
 report with score 82 / `watchlist`. The local
 `merge`/`check-invariants` scripts remain available for optional independent
 recomputation, but are not required for the cloud report.
+
+
+## 15. Bounded review retry (experimental)
+
+`templates/buffett-four-filters-retry.cogfoundry/` runs the four reviews inside a
+two-round Loop. Each body prompt builder receives `tickerPacket` plus the Loop
+`feedback` state; the judge writes validation errors into that state, so round
+two sees the previous findings. The judge accepts when every dimension has at
+least one verified evidence entry, otherwise it requests one retry; on the final
+round it accepts the candidate so the outer audit can reject it explicitly.
+
+The Loop uses the server's `control` field (decision + checkpoints), not the
+documented-but-unsupported `decision`/`until` aliases. Body model selection is
+fixed because Loop cost topology requires a static model ID.
+
+Verified run: template `c02a59e5-418b-4827-97a5-303b0cc8be67` v3
+`3241d088-9f97-4559-80b1-78ff206db9b2`, run
+`82b553b8-4025-4923-9643-007d16562b70`; Loop accepted in 1 iteration, audit
+accepted, 45 verified / 6 quarantined, score 71.

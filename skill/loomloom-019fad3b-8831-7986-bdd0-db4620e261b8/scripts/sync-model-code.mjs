@@ -20,6 +20,11 @@ export const CODE_SOURCES = {
   stp_model01: CLOUD_ENGINE_PATH,
   stp_audit1: path.resolve(HERE, "..", "model", "audit_code.py"),
   stp_report: path.resolve(HERE, "..", "model", "report_code.py"),
+  stp_judge1: path.resolve(HERE, "..", "model", "review_check_code.py"),
+  stp_promptb: path.resolve(HERE, "..", "model", "review_prompt_code.py"),
+  stp_promptm: path.resolve(HERE, "..", "model", "review_prompt_code.py"),
+  stp_promptf: path.resolve(HERE, "..", "model", "review_prompt_code.py"),
+  stp_promptv: path.resolve(HERE, "..", "model", "review_prompt_code.py"),
 };
 
 function argsOf(argv) {
@@ -35,7 +40,14 @@ function argsOf(argv) {
 
 export function codeSteps(template) {
   const spec = template?.canonicalSpecV2 ?? template;
-  const steps = (spec?.steps ?? []).filter((candidate) => candidate?.executionBinding?.kind === "codeProfile");
+  const steps = [];
+  const visit = (items) => {
+    for (const item of items ?? []) {
+      if (item?.executionBinding?.kind === "codeProfile") steps.push(item);
+      if (item?.loop?.body) visit(item.loop.body);
+    }
+  };
+  visit(spec?.steps);
   if (!steps.length) throw new Error("template has no codeProfile step");
   for (const step of steps) {
     if (!step.code) throw new Error(`${step.stepId} has no code block`);

@@ -31,7 +31,7 @@ v4 preflight. The v3 template remains available for non-modeling runs.
 
 ## Validation
 
-- 92 Node tests, 45 Python tests
+- 95 Node tests, 48 Python tests
 - Test server: template v9 `7ca2a5d6-dbd7-4e4f-85c1-004d1456bd44` (quarantine repair + cloud report)
 - Final NVDA run `1aa64499-6e2e-404e-b36b-7027d128d614`: preflight ready (246 checks),
   model ready, cloud/local matched, invariant gate 25/25, 17-sheet workbook,
@@ -59,3 +59,16 @@ v4 preflight. The v3 template remains available for non-modeling runs.
 Research aid only. Not investment advice. The model value is conditional
 arithmetic on the supplied assumptions, not a target price, return forecast, or
 buy/sell instruction.
+
+## Bounded review retry (experimental)
+
+`templates/buffett-four-filters-retry.cogfoundry/` adds a two-round Loop around
+the four reviews. Prompt builders receive the previous round's judge feedback;
+the judge accepts when every dimension has valid evidence, otherwise it requests
+one retry. The accepted review strings are re-exported through Code ports and
+consumed by the outer audit.
+
+Verified on test template `c02a59e5-418b-4827-97a5-303b0cc8be67` v3
+`3241d088-9f97-4559-80b1-78ff206db9b2`, run
+`82b553b8-4025-4923-9643-007d16562b70`: Loop accepted iteration 1, audit
+accepted, 45 verified / 6 quarantined, score 71.
