@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "loomloom-model-assumptions/v1",
+  "asOf": "2026-10-23",
+  "currency": "USD",
+  "units": "USD millions",
+  "baseScenario": "base",
+  "scenarios": {
+    "base": {
+      "label": "Bull",
+      "years": 5,
+      "revenueGrowth": [
+        0.55,
+        0.45,
+        0.35,
+        0.25,
+        0.2
+      ],
+      "ebitMargin": [
+        0.0,
+        0.08,
+        0.15,
+        0.2,
+        0.22
+      ],
+      "taxRate": 0.1,
+      "daPctRevenue": 0.35,
+      "capexPctRevenue": 0.4,
+      "nwcPctRevenue": -1.0,
+      "interestRateOnDebt": 0.045,
+      "debtRepaymentPct": 0.05,
+      "dividendPayoutRatio": 0,
+      "buybackPctOfNetIncome": 0,
+      "wacc": 0.12,
+      "terminalMethod": "perpetuity",
+      "terminalGrowth": 0.035
+    }
+  },
+  "sources": [
+    {
+      "field": "startingRevenue",
+      "value": "TTM 7,590 (FY2025 + 6M 2026 - 6M 2025)",
+      "source": "SEC 10-Q FY2026 Q2",
+      "date": "2026-08-12"
+    },
+    {
+      "field": "scenarios.*.revenueGrowth",
+      "value": "bear 5-20% / base 20-40% / bull 20-55%",
+      "source": "user-supplied path-to-profitability assumptions",
+      "date": "2026-10-23"
+    },
+    {
+      "field": "scenarios.*.ebitMargin",
+      "value": "bear -5% to 10% / base -2% to 15% / bull 0% to 22%",
+      "source": "user-supplied path-to-profitability assumptions",
+      "date": "2026-10-23"
+    },
+    {
+      "field": "scenarios.*.capexPctRevenue",
+      "value": "bear 30-120% / base 45-150% / bull 60-170%",
+      "source": "TTM capex was 271% of revenue; assumes normalization",
+      "date": "2026-10-23"
+    },
+    {
+      "field": "scenarios.*.wacc",
+      "value": "bear 16% / base 14% / bull 12%",
+      "source": "user-supplied leverage/risk premium",
+      "date": "2026-10-23"
+    }
+  ],
+  "unknowns": [
+    "Capex and EBIT margins are normalization assumptions, not company guidance.",
+    "Operating leases are treated as operating costs / other liabilities, not debt, in the model."
+  ]
+}

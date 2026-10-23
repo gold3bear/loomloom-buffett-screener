@@ -1,0 +1,232 @@
+{
+  "identityPacket": {
+    "ticker": "CRWV",
+    "companyName": "CoreWeave, Inc.",
+    "industry": "AI cloud infrastructure",
+    "dataAsOf": "2026-10-23",
+    "fiscalPeriod": "FY2026 Q2 TTM",
+    "sources": [
+      "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+      "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000104/crwv-20251231.htm",
+      "https://investors.coreweave.com/"
+    ]
+  },
+  "financialPacket": {
+    "units": "USD millions",
+    "marketSnapshot": {
+      "price": 55.6,
+      "currency": "USD",
+      "asOf": "2026-10-22T20:00:00Z",
+      "pe": null,
+      "marketCapUsd": 30635.6,
+      "sharesOutstanding": 551
+    },
+    "annualHistory": {
+      "fiscalYearEnd": [
+        "2023-12-31",
+        "2024-12-31",
+        "2025-12-31"
+      ],
+      "revenue": [
+        229,
+        1915,
+        5131
+      ],
+      "netIncome": [
+        -594,
+        -863,
+        -1167
+      ],
+      "freeCashFlow": [
+        -1110,
+        -5953,
+        -7251
+      ]
+    },
+    "quarterlyMostRecent": {
+      "period": "FY2026 Q2",
+      "fiscalQuarterEnd": "2026-06-30",
+      "filed": "2026-08-12",
+      "revenue": 2575,
+      "netIncome": -626,
+      "operatingIncome": -49,
+      "cfo": 679,
+      "capex": 6422,
+      "da": 1393,
+      "priorYearQuarter": {
+        "period": "FY2025 Q2",
+        "revenue": 1213,
+        "netIncome": -290,
+        "operatingIncome": 19
+      },
+      "sixMonths": {
+        "revenue": 4653,
+        "netIncome": -1366,
+        "operatingIncome": -193,
+        "cfo": 3663,
+        "capex": 14117,
+        "da": 2540
+      },
+      "priorYearSixMonths": {
+        "revenue": 2194,
+        "netIncome": -605,
+        "operatingIncome": -8,
+        "cfo": -190,
+        "capex": 3860,
+        "da": 1003
+      },
+      "ttm": {
+        "revenue": 7590,
+        "netIncome": -1928,
+        "operatingIncome": -231,
+        "cfo": 6911,
+        "capex": 20566,
+        "fcf": -13655,
+        "da": 3991
+      }
+    },
+    "balanceSheet": {
+      "cash": 5524,
+      "currentAssets": 9520,
+      "currentLiabilities": 20917,
+      "shortTermDebt": 6184,
+      "totalDebt": 35551,
+      "netWorkingCapital": -12192,
+      "netPPE": 46736,
+      "otherAssets": 37002,
+      "totalAssets": 77070,
+      "totalLiabilities": 72046,
+      "otherLiabilities": 36495,
+      "equity": 5024,
+      "sharesOutstanding": 551
+    },
+    "unknowns": [
+      "P/E is not meaningful because the company reports a net loss and has no normalized owner earnings.",
+      "Operating lease liabilities of 16,319 are excluded from totalDebt but are a fixed obligation; they are discussed in the narrative.",
+      "FY2026 Q3 (quarter ending 2026-09-30) has not been filed; TTM uses Q2 FY2026 and 6M FY2025 comparatives."
+    ]
+  },
+  "qualitativePacket": {
+    "businessModel": [
+      {
+        "fact": "CoreWeave provides cloud computing services specialized for AI workloads, including committed contracts and on-demand services.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+        "date": "2026-08-12",
+        "sourceType": "10-Q FY2026 Q2",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "Revenue recognized related to customer commitments represented 98% of total revenue in the three and six months ended June 30, 2026.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+        "date": "2026-08-12",
+        "sourceType": "10-Q FY2026 Q2",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "Remaining performance obligations were $103.7 billion at June 30, 2026.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+        "date": "2026-08-12",
+        "sourceType": "10-Q FY2026 Q2",
+        "sourceTier": "S"
+      }
+    ],
+    "moatEvidence": [
+      {
+        "fact": "CoreWeave's platform is designed for accelerated computing and AI workloads, with long-term committed contracts providing revenue visibility.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+        "date": "2026-08-12",
+        "sourceType": "10-Q FY2026 Q2",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "Q2 2026 revenue grew 112% year over year to $2.575 billion.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+        "date": "2026-08-12",
+        "sourceType": "10-Q FY2026 Q2",
+        "sourceTier": "S"
+      }
+    ],
+    "managementCulture": [
+      {
+        "fact": "Michael Intrator is co-founder and chief executive officer of CoreWeave.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000104/crwv-20251231.htm",
+        "date": "2026-03-02",
+        "sourceType": "10-K FY2025",
+        "sourceTier": "S"
+      }
+    ],
+    "capitalAllocation": [
+      {
+        "fact": "CoreWeave funded capital expenditures with operating cash flow and $16.7 billion of long-term debt proceeds in the six months ended June 30, 2026.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+        "date": "2026-08-12",
+        "sourceType": "10-Q FY2026 Q2",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "Total debt was $35.551 billion at June 30, 2026.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+        "date": "2026-08-12",
+        "sourceType": "10-Q FY2026 Q2",
+        "sourceTier": "S"
+      }
+    ],
+    "riskFactors": [
+      {
+        "fact": "The top three customers accounted for 36%, 26% and 10% of revenue in Q2 2026, or 72% combined.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+        "date": "2026-08-12",
+        "sourceType": "10-Q FY2026 Q2",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "Microsoft, OpenAI and Meta are significant customers; customer concentration is expected to continue.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+        "date": "2026-08-12",
+        "sourceType": "10-Q FY2026 Q2",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "CoreWeave had $35.551 billion of debt and $16.319 billion of operating lease liabilities at June 30, 2026.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+        "date": "2026-08-12",
+        "sourceType": "10-Q FY2026 Q2",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "Capital expenditures were $14.117 billion in the six months ended June 30, 2026, while operating cash flow was $3.663 billion.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+        "date": "2026-08-12",
+        "sourceType": "10-Q FY2026 Q2",
+        "sourceTier": "S"
+      }
+    ],
+    "contraryEvidence": [
+      {
+        "fact": "AI infrastructure demand is cyclical and the company's rapid growth depends on continued customer spending.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+        "date": "2026-08-12",
+        "sourceType": "10-Q risk factors",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "The company competes with AWS, Google Cloud, Microsoft Azure and Oracle, some of which are also customers.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+        "date": "2026-08-12",
+        "sourceType": "10-Q FY2026 Q2",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "Additional equity or debt financing may be required and could dilute stockholders or increase leverage.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm",
+        "date": "2026-08-12",
+        "sourceType": "10-Q risk factors",
+        "sourceTier": "S"
+      }
+    ],
+    "unknowns": [
+      "No normalized owner earnings or contract-level ROIC disclosure was included in the packet.",
+      "Customer names behind the 36%/26%/10% concentrations are not disclosed in the packet."
+    ]
+  }
+}

@@ -4,7 +4,6 @@
   "currency": "USD",
   "units": "USD millions",
   "baseScenario": "base",
-  "startingRevenue": 302970,
   "scenarios": {
     "bear": {
       "label": "Bear",
