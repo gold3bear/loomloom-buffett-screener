@@ -252,7 +252,7 @@ def build_pipeline():
         520,
         150,
         "本次实跑（2026-10-23）",
-        "NVDA · overall 82 · watchlist\ncloud/local matched · gate 25/25\n实际费用 0.0196 CNY · 17-sheet xlsx",
+        "NVDA · overall 80 · watchlist\ncloud/local matched · gate 25/25\n实际费用 0.0223 CNY · 17-sheet xlsx",
         GREEN,
         title_size=22,
     )

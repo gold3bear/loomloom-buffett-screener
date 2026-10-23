@@ -49,7 +49,7 @@ Schema in [`listing-input-schema.json`](listing-input-schema.json).
 | Component | Estimate |
 |---|---|
 | Creator fixed fee | `0.20 CNY` per task (current listing price) |
-| Observed model/Code cost (test env, 6 steps) | `≈ 0.0196 CNY` per row |
+| Observed model/Code cost (test env, 6 steps) | `≈ 0.0223 CNY` per row |
 | Estimated total pay-per-use | `≈ 0.22 CNY` per row |
 | Subscription | not enabled; no bundle tiers |
 

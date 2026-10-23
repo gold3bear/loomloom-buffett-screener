@@ -3,22 +3,22 @@
     "ticker": "NVDA",
     "companyName": "NVIDIA Corporation",
     "industry": "Semiconductors & AI Accelerators",
-    "dataAsOf": "2026-10-22",
-    "fiscalPeriod": "FY2026",
+    "dataAsOf": "2026-10-23",
+    "fiscalPeriod": "FY2027 Q2 TTM",
     "sources": [
-      "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-K",
+      "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-Q",
       "https://investor.nvidia.com/financial-info/financial-reports/default.aspx"
     ]
   },
   "financialPacket": {
     "units": "USD millions",
     "marketSnapshot": {
-      "price": 221.97,
+      "price": 212.21,
       "currency": "USD",
-      "asOf": "2026-10-21T20:00:00Z",
-      "pe": 44.9,
-      "marketCapUsd": 5393871.0,
-      "sharesOutstanding": 24300
+      "asOf": "2026-10-22T20:00:00Z",
+      "pe": 26.52,
+      "marketCapUsd": 5114261.0,
+      "sharesOutstanding": 24100
     },
     "annualHistory": {
       "fiscalYearEnd": [
@@ -42,40 +42,90 @@
         96676
       ]
     },
+    "quarterlyMostRecent": {
+      "period": "FY2027 Q2",
+      "fiscalQuarterEnd": "2026-07-26",
+      "filed": "2026-08-26",
+      "revenue": 96221,
+      "netIncome": 59688,
+      "operatingIncome": 63734,
+      "tax": 11819,
+      "cfo": 24077,
+      "capex": 2677,
+      "da": 1127,
+      "priorYearQuarter": {
+        "period": "FY2026 Q2",
+        "revenue": 46743,
+        "netIncome": 26422,
+        "operatingIncome": 28440
+      },
+      "sixMonths": {
+        "revenue": 177837,
+        "netIncome": 118010,
+        "operatingIncome": 117270,
+        "cfo": 74421,
+        "capex": 4434,
+        "da": 2124
+      },
+      "priorYearSixMonths": {
+        "revenue": 90805,
+        "netIncome": 45197,
+        "operatingIncome": 50078,
+        "cfo": 42779,
+        "capex": 3122,
+        "da": 1280
+      },
+      "ttm": {
+        "revenue": 302970,
+        "netIncome": 192880,
+        "operatingIncome": 197579,
+        "cfo": 134360,
+        "capex": 7354,
+        "fcf": 127006,
+        "da": 3687
+      }
+    },
     "balanceSheet": {
-      "cash": 10605,
-      "currentAssets": 125605,
-      "currentLiabilities": 32163,
-      "shortTermDebt": 999,
-      "longTermDebt": 7469,
-      "totalDebt": 8468,
-      "netWorkingCapital": 28705,
-      "netPPE": 10383,
-      "otherAssets": 157110,
-      "totalAssets": 206803,
-      "totalLiabilities": 49510,
-      "otherLiabilities": 41042,
-      "equity": 157293,
-      "sharesOutstanding": 24300
+      "cash": 22443,
+      "currentAssets": 197412,
+      "currentLiabilities": 43019,
+      "shortTermDebt": 1000,
+      "longTermDebt": 32366,
+      "totalDebt": 33366,
+      "netWorkingCapital": 52615,
+      "netPPE": 14285,
+      "otherAssets": 230929,
+      "totalAssets": 320272,
+      "totalLiabilities": 91288,
+      "otherLiabilities": 57922,
+      "equity": 228984,
+      "sharesOutstanding": 24100
     },
     "unknowns": [
-      "FY2027 quarterly data not included; the model uses the FY2026 annual base."
+      "FY2027 Q3 (quarter ending 2026-10-25) has not been filed; TTM uses Q2 FY2027 and 6M FY2026 comparatives."
     ]
   },
   "qualitativePacket": {
     "businessModel": [
       {
         "fact": "NVIDIA designs accelerated computing platforms, including data-center GPUs, networking, gaming GPUs and software.",
-        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-K",
-        "date": "2026-02-25",
-        "sourceType": "10-K FY2026",
+        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-Q",
+        "date": "2026-08-26",
+        "sourceType": "10-Q FY2027 Q2",
         "sourceTier": "S"
       },
       {
         "fact": "Data Center is NVIDIA's largest revenue platform.",
-        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-K",
-        "date": "2026-02-25",
-        "sourceType": "10-K FY2026",
+        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-Q",
+        "date": "2026-08-26",
+        "sourceType": "10-Q FY2027 Q2",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "FY2027 Q2 revenue was $96,221 million, up 106% from the prior-year quarter.",
+        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-Q",
+        "date": "2026-08-26",
+        "sourceType": "10-Q FY2027 Q2",
         "sourceTier": "S"
       }
     ],
@@ -90,7 +140,7 @@
       {
         "fact": "NVIDIA's scale and product cadence support a performance lead in AI accelerators and networking.",
         "source": "https://investor.nvidia.com/financial-info/financial-reports/default.aspx",
-        "date": "2026-02-25",
+        "date": "2026-08-26",
         "sourceType": "Company IR",
         "sourceTier": "S"
       },
@@ -113,7 +163,7 @@
       {
         "fact": "NVIDIA's board includes independent directors and a lead independent director.",
         "source": "https://investor.nvidia.com/corporate-governance/board-of-directors/default.aspx",
-        "date": "2026-10-22",
+        "date": "2026-10-23",
         "sourceType": "Company IR",
         "sourceTier": "S"
       }
@@ -121,9 +171,9 @@
     "capitalAllocation": [
       {
         "fact": "NVIDIA returns capital to shareholders through dividends and share repurchases.",
-        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-K",
-        "date": "2026-02-25",
-        "sourceType": "10-K FY2026",
+        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-Q",
+        "date": "2026-08-26",
+        "sourceType": "10-Q FY2027 Q2",
         "sourceTier": "S"
       },
       {
@@ -161,7 +211,7 @@
       {
         "fact": "AI infrastructure spending is cyclical and can decelerate faster than consensus expects.",
         "source": "https://investor.nvidia.com/financial-info/financial-reports/default.aspx",
-        "date": "2026-10-22",
+        "date": "2026-10-23",
         "sourceType": "Analyst/user note",
         "sourceTier": "B"
       },
@@ -171,8 +221,17 @@
         "date": "2026-02-25",
         "sourceType": "10-K FY2026",
         "sourceTier": "S"
+      },
+      {
+        "fact": "Total debt rose to $33,366 million at FY2027 Q2 from $8,468 million at FY2026 year-end.",
+        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-Q",
+        "date": "2026-08-26",
+        "sourceType": "10-Q FY2027 Q2",
+        "sourceTier": "S"
       }
     ],
-    "unknowns": []
+    "unknowns": [
+      "No historical P/E band from 10-K Item 5 is included; normalized owner earnings are not disclosed in the packet."
+    ]
   }
 }

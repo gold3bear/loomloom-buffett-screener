@@ -30,13 +30,18 @@ v4 preflight. The v3 template remains available for non-modeling runs.
 
 ## Validation
 
-- 78 Node tests, 37 Python tests
-- Test server: template v3 `b1a5c31b-9b10-44dc-93c9-a4dca7b5ef60`
-- Final NVDA run `e56ef83b-6c9e-4ed2-ae3a-4f0ab0b3b82d`: preflight ready (234 checks),
+- 91 Node tests, 37 Python tests
+- Test server: template v4 `57f42b2e-5f5c-41b2-8158-512ad061fb98` (prompt allowlist)
+- Final NVDA run `1aa64499-6e2e-404e-b36b-7027d128d614`: preflight ready (246 checks),
   model ready, cloud/local matched, invariant gate 25/25, 17-sheet workbook,
-  local audit accepted with 29 verified evidence / 3 rejected.
+  local audit accepted with 31 verified evidence / 5 rejected. Two narrative
+  numbers were flagged: FCF/NI `1.03x` vs packet `0.66x`, and "net cash" vs the
+  current net debt.
 - The equity bridge now uses opening net debt; the old terminal-net-debt values
   (AAPL `137.68`, NVDA `140.03`) are superseded by AAPL `122.81` and NVDA `114.52`.
+- The four review prompts now carry a source-ref allowlist: existing leaf paths
+  only, no `unknowns[i]` or object citations. The local audit still enforces the
+  rule because prompt-only hardening did not eliminate every bad citation.
 - Gating run `9464a209-fe37-44fc-abd8-a001b8434119`: invalid row returned
   `ready=false` with 3 findings, 0 artifacts, all five downstream steps skipped.
 

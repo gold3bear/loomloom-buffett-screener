@@ -555,18 +555,27 @@ the equity-bridge fix:
 | Server | `https://loomloom-test.shengsuanyun.com/loom/v1` |
 | Template | `03cc5781-ddca-40e3-a9df-ccf1fe626447` |
 | Version | `b1a5c31b-9b10-44dc-93c9-a4dca7b5ef60` (v3, opening-net-debt bridge) |
-| Final run | `e56ef83b-6c9e-4ed2-ae3a-4f0ab0b3b82d` |
-| Estimated / actual cost | `0.0372652` / `0.0196023` CNY |
+| Final run | `1aa64499-6e2e-404e-b36b-7027d128d614` |
+| Estimated / actual cost | `0.0437328` / `0.0223041` CNY |
 | Status | completed, 1/1 tasks |
-| Cloud preflight | `ready=true`, 234 checks, 0 errors |
+| Cloud preflight | `ready=true`, 246 checks, 0 errors |
 | Cloud model | `model_ready=true`, engine `1.1.0` |
-| Base value / price / MOS | `114.517132` / `221.97` / `-93.83%` |
-| Scenario values | Bear `57.469632` / Base `114.517132` / Bull `196.802551` |
+| Base value / price / MOS | `136.639377` / `212.21` / `-55.31%` |
+| Scenario values | Bear `61.938682` / Base `136.639377` / Bull `239.646285` |
 | Model checks | 7/7 scenario integrity checks, 2/2 model invariants |
 | Cloud vs local | `matched` |
 | Invariant gate | 25/25 error checks passed |
 | Workbook | 17 sheets, opened with openpyxl |
-| Local audit | accepted, overall 82, decision `watchlist`, 29 verified evidence, 3 rejected |
+| Local audit | accepted, overall 80, decision `watchlist`, 31 verified evidence, 5 rejected |
+| Narrative checks | 2 conflicts: FCF/NI `1.03x` vs packet `0.66x`; net cash vs net debt |
+
+Prompt v4 adds an explicit allowlist: cite only existing leaf paths, never cite
+`unknowns[i]` or the `unknowns` array, and never cite an object such as
+`quarterlyMostRecent.ttm`. Validation showed this reduces but does not eliminate
+bad citations: with an empty `unknowns` array the model still cited the whole
+array once. The local audit now rejects that with
+`source_ref must point to an atomic leaf, not an array`. Prompt hardening is a
+mitigation; the local resolver remains the enforcement point.
 
 The earlier AAPL run `96a6542c-...` and the archived AAPL values were produced
 with the old `Debt_N - Cash_N` bridge. They are retained only as history and are

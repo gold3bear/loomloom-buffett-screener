@@ -18,7 +18,7 @@ const TEMPLATE = path.join(REPO_ROOT, "templates", "buffett-four-filters-model.c
 
 const input = {
   identityPacket: { ticker: "AAPL", companyName: "Apple Inc.", fiscalPeriod: "FY2025", dataAsOf: "2026-09-01" },
-  financialPacket: { marketSnapshot: { price: 200, currency: "USD", asOf: "2026-09-01" }, metrics: { revenue: 100, fcf: 20, debt: 10, pe: 25 } },
+  financialPacket: { marketSnapshot: { price: 200, currency: "USD", asOf: "2026-09-01", pe: 25 }, metrics: { revenue: 100, fcf: 20, debt: 10, pe: 25 } },
   qualitativePacket: {},
 };
 
@@ -215,4 +215,31 @@ test("surfaces cloud preflight findings on a blocked row", () => {
   assert.equal(row.cloud_preflight.ready, false);
   assert.ok(row.errors.some((error) => error.includes("MARKET_CAP_MISSING")));
   assert.equal(report.summary.preflightBlockedRows, 1);
+});
+
+test("narrative numbers that contradict the packet set audit warn", () => {
+  const envelope = payload();
+  const financial = JSON.parse(envelope.rows[0].artifacts[2].inlineText);
+  financial.summary = "The stock trades at a P/E of 999x.";
+  envelope.rows[0].artifacts[2].inlineText = JSON.stringify(financial);
+  const report = mergeResults(envelope, {});
+  const row = report.rows[0];
+  assert.equal(row.valid, true);
+  assert.equal(row.audit_status, "warn");
+  assert.equal(row.narrative_checks.length, 1);
+  assert.equal(row.narrative_checks[0].code, "NARRATIVE_PE_CONFLICT");
+  assert.equal(report.summary.narrativeConflictRows, 1);
+});
+
+test("strict narrative turns a numeric contradiction into a veto", () => {
+  const envelope = payload();
+  const financial = JSON.parse(envelope.rows[0].artifacts[2].inlineText);
+  financial.summary = "The stock trades at a P/E of 999x.";
+  envelope.rows[0].artifacts[2].inlineText = JSON.stringify(financial);
+  const report = mergeResults(envelope, { strictNarrative: true });
+  const row = report.rows[0];
+  assert.equal(row.valid, true);
+  assert.equal(row.audit_status, "vetoed");
+  assert.ok(row.veto_items.includes("narrative_number_conflict"));
+  assert.equal(row.decision, "pass");
 });

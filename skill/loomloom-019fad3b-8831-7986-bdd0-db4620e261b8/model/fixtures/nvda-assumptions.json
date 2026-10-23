@@ -1,32 +1,33 @@
 {
   "schemaVersion": "loomloom-model-assumptions/v1",
-  "asOf": "2026-10-22",
+  "asOf": "2026-10-23",
   "currency": "USD",
   "units": "USD millions",
   "baseScenario": "base",
+  "startingRevenue": 302970,
   "scenarios": {
     "bear": {
       "label": "Bear",
       "years": 5,
       "revenueGrowth": [
+        0.1,
         0.08,
         0.06,
         0.05,
-        0.04,
-        0.03
+        0.04
       ],
       "ebitMargin": [
+        0.56,
         0.55,
         0.54,
         0.53,
-        0.52,
-        0.51
+        0.52
       ],
-      "taxRate": 0.15,
-      "daPctRevenue": 0.013,
-      "capexPctRevenue": 0.028,
-      "nwcPctRevenue": 0.133,
-      "interestRateOnDebt": 0.04,
+      "taxRate": 0.16,
+      "daPctRevenue": 0.012,
+      "capexPctRevenue": 0.024,
+      "nwcPctRevenue": 0.174,
+      "interestRateOnDebt": 0.045,
       "debtRepaymentPct": 0.05,
       "dividendPayoutRatio": 0.01,
       "buybackPctOfNetIncome": 0.15,
@@ -38,24 +39,24 @@
       "label": "Base",
       "years": 5,
       "revenueGrowth": [
-        0.2,
+        0.25,
+        0.22,
         0.18,
         0.15,
-        0.12,
-        0.1
+        0.12
       ],
       "ebitMargin": [
+        0.63,
+        0.62,
+        0.61,
         0.6,
-        0.59,
-        0.58,
-        0.57,
-        0.56
+        0.59
       ],
-      "taxRate": 0.15,
-      "daPctRevenue": 0.013,
-      "capexPctRevenue": 0.028,
-      "nwcPctRevenue": 0.133,
-      "interestRateOnDebt": 0.04,
+      "taxRate": 0.16,
+      "daPctRevenue": 0.012,
+      "capexPctRevenue": 0.024,
+      "nwcPctRevenue": 0.174,
+      "interestRateOnDebt": 0.045,
       "debtRepaymentPct": 0.05,
       "dividendPayoutRatio": 0.01,
       "buybackPctOfNetIncome": 0.2,
@@ -67,24 +68,24 @@
       "label": "Bull",
       "years": 5,
       "revenueGrowth": [
+        0.35,
         0.3,
         0.25,
         0.2,
-        0.15,
-        0.12
+        0.15
       ],
       "ebitMargin": [
+        0.65,
+        0.64,
+        0.63,
         0.62,
-        0.61,
-        0.6,
-        0.6,
-        0.59
+        0.61
       ],
-      "taxRate": 0.15,
-      "daPctRevenue": 0.013,
-      "capexPctRevenue": 0.028,
-      "nwcPctRevenue": 0.133,
-      "interestRateOnDebt": 0.04,
+      "taxRate": 0.16,
+      "daPctRevenue": 0.012,
+      "capexPctRevenue": 0.024,
+      "nwcPctRevenue": 0.174,
+      "interestRateOnDebt": 0.045,
       "debtRepaymentPct": 0.05,
       "dividendPayoutRatio": 0.01,
       "buybackPctOfNetIncome": 0.2,
@@ -95,28 +96,34 @@
   },
   "sources": [
     {
+      "field": "startingRevenue",
+      "value": "TTM revenue 302,970 (FY2026 + 6M FY2027 - 6M FY2026)",
+      "source": "SEC 10-Q FY2027 Q2",
+      "date": "2026-08-26"
+    },
+    {
       "field": "scenarios.*.revenueGrowth",
-      "value": "bear 3-8% / base 10-20% / bull 12-30%",
+      "value": "bear 4-10% / base 12-25% / bull 15-35%",
       "source": "user-supplied test assumptions",
-      "date": "2026-10-22"
+      "date": "2026-10-23"
     },
     {
       "field": "scenarios.*.ebitMargin",
-      "value": "bear 51-55% / base 56-60% / bull 59-62%",
-      "source": "user-supplied test assumptions",
-      "date": "2026-10-22"
+      "value": "bear 52-56% / base 59-63% / bull 61-65%",
+      "source": "TTM EBIT margin 65.2%, moderated forward",
+      "date": "2026-10-23"
     },
     {
       "field": "scenarios.*.wacc",
       "value": "bear 10% / base 9% / bull 8%",
       "source": "user-supplied test assumptions",
-      "date": "2026-10-22"
+      "date": "2026-10-23"
     },
     {
       "field": "scenarios.*.terminalGrowth",
       "value": "2.5% / 3.0% / 3.5%",
       "source": "user-supplied test assumptions",
-      "date": "2026-10-22"
+      "date": "2026-10-23"
     }
   ],
   "unknowns": []

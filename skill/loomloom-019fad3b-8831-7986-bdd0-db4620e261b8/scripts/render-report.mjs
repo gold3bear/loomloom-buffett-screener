@@ -59,6 +59,12 @@ function preflightSummary(preflight) {
   return `### Cloud preflight\n\n- ready: false\n${list(findings.map((finding) => `${finding.code} at ${finding.path}: ${finding.message}`), "no error detail returned")}\n\n`;
 }
 
+function narrativeSection(row) {
+  const findings = row.narrative_checks ?? [];
+  if (!findings.length) return "";
+  return `\n### Narrative vs packet\n\n${list(findings.map((finding) => `${finding.code} at ${finding.path}: ${finding.message}`))}\n\n`;
+}
+
 function modelSection(model, audit) {
   if (!model) return "";
   const lines = ["### Investment model (three-statement + DCF)", ""];
@@ -79,7 +85,7 @@ function modelSection(model, audit) {
   lines.push(`- Verdict: ${clean(modelVerdictLabel(verdict))}`);
   if (model.model_ready) {
     lines.push(`- Base scenario: ${clean(base?.label || baseName)}; model value per share: ${money(summary.valuePerShare)} ${clean(model.currency)}; current price: ${money(model.price)} ${clean(model.currency)}; margin of safety: ${pct(summary.marginOfSafetyPct)}`);
-    lines.push(`- Enterprise value: ${money(summary.enterpriseValue)}; equity value: ${money(summary.equityValue)}; net debt: ${money(summary.netDebt)} (negative = net cash)`);
+    lines.push(`- Enterprise value: ${money(summary.enterpriseValue)}; equity value: ${money(summary.equityValue)}; net debt: ${money(summary.netDebt)} (${summary.netDebt < 0 ? "negative = net cash" : "positive = net debt"})`);
     lines.push(`- Terminal value: ${pct(summary.terminalPctOfEv)} of enterprise value (${clean(summary.terminalAssumption)})`);
     const scenarioOrder = ["bear", "base", "bull"];
     const scenarioLine = Object.entries(model.scenarios ?? {})
@@ -132,7 +138,8 @@ function rowSection(row) {
     `- Current price: ${row.price ?? "unknown"} ${clean(row.price_currency)} (${clean(row.price_as_of) || "timestamp unknown"})\n` +
     `- Fiscal period: ${clean(row.fiscal_period) || "unknown"}; data as of: ${clean(row.data_as_of) || "unknown"}\n` +
     `- Local audit: ${row.audit_status}; hallucination risk: ${row.hallucination_risk}; format: ${row.validationStatus}\n` +
-    `${preflightSummary(row.cloud_preflight)}\n` +
+    `${preflightSummary(row.cloud_preflight)}` +
+    `${narrativeSection(row)}\n` +
     `${modelSection(row.investment_model, row.model_audit)}` +
     `### Four-dimension summary\n\n` +
     `- Business model & circle of competence: ${clean(summaries.business)}\n` +
@@ -164,7 +171,8 @@ export function renderReport(report) {
     `- Locally accepted: ${report.summary?.acceptedRows ?? 0}\n` +
     `- Locally rejected: ${report.summary?.rejectedRows ?? 0}\n` +
     `- Eligible for deep-research ranking: ${report.summary?.decisionEligibleRows ?? 0}\n` +
-    `- Modeled rows: ${report.summary?.modeledRows ?? 0}; model-ready rows: ${report.summary?.modelReadyRows ?? 0}; cloud/local model mismatches: ${report.summary?.modelMismatchRows ?? 0}\n\n` +
+    `- Modeled rows: ${report.summary?.modeledRows ?? 0}; model-ready rows: ${report.summary?.modelReadyRows ?? 0}; cloud/local model mismatches: ${report.summary?.modelMismatchRows ?? 0}\n` +
+    `${report.summary?.narrativeConflictRows ? `- Rows with narrative/packet numeric conflicts: ${report.summary.narrativeConflictRows}\n` : ""}\n` +
     `| Ticker | Decision tier | Overall score | Current price | Price timestamp | Model value/share | Model MOS | Local audit |\n|---|---|---:|---:|---|---:|---:|---|\n${overview}\n\n` +
     `## Deep-research priority\n\n${ranked}\n\n` +
     `${report.rows.map(rowSection).join("\n")}\n` +

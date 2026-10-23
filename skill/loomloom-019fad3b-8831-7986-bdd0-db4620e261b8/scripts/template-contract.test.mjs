@@ -118,3 +118,14 @@ test("preflight gate is wired as a boolean when-condition", async () => {
   assert.equal(preflight.code.source, source);
   assert.ok(Buffer.byteLength(preflight.code.source, "utf8") <= 65536);
 });
+
+test("every review prompt forbids empty-array and object citations", async () => {
+  const text = (await spec()).steps
+    .filter((step) => step.executionBinding.kind === "capabilityProfile")
+    .map((step) => (step.inputBindings.prompt.compose.parts ?? []).filter((part) => part.source === "literal").map((part) => part.literal).join("\n"))
+    .join("\n");
+  assert.ok(text.includes("4a."), "array existence rule");
+  assert.ok(text.includes("Never cite an `unknowns[i]` path"), "unknowns citation rule");
+  assert.ok(text.includes("quarterlyMostRecent.ttm` is an object"), "object citation rule");
+  assert.ok(text.includes("falsification_conditions"), "falsification rule");
+});

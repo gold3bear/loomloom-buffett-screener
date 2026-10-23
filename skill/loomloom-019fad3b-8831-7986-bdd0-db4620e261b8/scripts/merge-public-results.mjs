@@ -2,6 +2,7 @@
 
 import { readFile, writeFile } from "node:fs/promises";
 import process from "node:process";
+import { checkNarrative } from "./narrative-checks.mjs";
 
 const DIMENSIONS = ["business", "moat", "financial", "valuation"];
 const WEIGHTS = { understandability: 0.10, business_model: 0.20, moat: 0.20, management_capital_allocation: 0.15, financial_quality: 0.20, valuation_opportunity_cost: 0.15 };
@@ -26,6 +27,7 @@ function argsOf(argv) {
     else if (["--output", "-o"].includes(argv[i])) args.output = argv[++i];
     else if (["--models", "-m"].includes(argv[i])) args.models = argv[++i];
     else if (argv[i] === "--require-model") args.requireModel = true;
+    else if (argv[i] === "--strict-narrative") args.strictNarrative = true;
     else if (argv[i] === "--pretty") args.pretty = true;
     else if (["--help", "-h"].includes(argv[i])) args.help = true;
     else throw new Error(`Unknown argument: ${argv[i]}`);
@@ -512,11 +514,10 @@ function traceRecords(records, label, input, errors, { min, max, condition = fal
     else {
       const resolved = resolveRef(input, item.source_ref);
       if (resolved === undefined) errors.push(`${label}.source_ref cannot be resolved against the input`);
+      else if (!atomic(resolved)) errors.push(`${label}.source_ref must point to an atomic leaf, not ${Array.isArray(resolved) ? "an array" : "an object"}`);
       else {
-        // source_value must verbatim match the input at source_ref. Atomic types
-        // (string/number/boolean/null) use atomic + same(); arrays/objects use deep
-        // JSON equality so the LLM can cite an unknown field's current value (e.g.
-        // `financialPacket.unknowns`) as a falsification anchor.
+        // source_value must verbatim match the input at source_ref. Arrays and
+        // objects are not evidence anchors; cite a leaf field instead.
         if (atomic(item.source_value)) {
           if (!same(resolved, item.source_value)) errors.push(`${label}.source_value does not verbatim copy an atomic input value`);
         } else if (isObject(item.source_value) || Array.isArray(item.source_value)) {
@@ -617,6 +618,7 @@ function mergeRow(row, index, options = {}) {
   if (errors.length) return rejected(row, index, ticker, errors, normalized, { ...modelInfo, cloud_preflight: preflight });
 
   const evidence = auditEvidence(reviews, input);
+  const narrative = checkNarrative(reviews, input);
   const veto = [];
   if (biz.circle_of_competence === "fail") veto.push("circle_of_competence_fail");
   for (const dimension of DIMENSIONS) if (evidence.byDimension[dimension] === 0) veto.push(`missing_verified_evidence_${dimension}`);
@@ -642,6 +644,7 @@ function mergeRow(row, index, options = {}) {
   if (options.requireModel && !modelInfo.investment_model) veto.push("model_required_but_missing");
   if (options.requireModel && modelInfo.investment_model && !modelInfo.investment_model.model_ready) veto.push("model_not_ready");
   if (modelInfo.model_audit?.status === "mismatch") veto.push("model_recompute_mismatch");
+  if (options.strictNarrative && narrative.length) veto.push("narrative_number_conflict");
   const modelMos = modelInfo.investment_model?.scenarios?.[modelInfo.investment_model?.baseScenario]?.summary?.marginOfSafetyPct;
   if (typeof modelMos === "number" && modelMos < MODEL_CONTRADICTION_MOS && val.judgment_state === "eligible_for_manual_deep_research")
     veto.push("model_contradicts_valuation_verdict");
@@ -654,7 +657,7 @@ function mergeRow(row, index, options = {}) {
     ? "fail"
     : uniqueVeto.length
       ? "vetoed"
-      : (evidence.rejected.length || unknowns.length > UNKNOWN_WARN_THRESHOLD)
+      : (evidence.rejected.length || narrative.length || unknowns.length > UNKNOWN_WARN_THRESHOLD)
         ? "warn"
         : "pass";
   // M-17: confidence expression with explicit parentheses and multi-line layout to avoid `?:` nesting misreads.
@@ -689,6 +692,8 @@ function mergeRow(row, index, options = {}) {
     verified_evidence: evidence.verified, rejected_evidence: evidence.rejected,
     unknowns, review_summaries: Object.fromEntries(DIMENSIONS.map((dimension) => [dimension, reviews[dimension].summary ?? ""])),
     cloud_preflight: preflight,
+    narrative_checks: narrative,
+    narrative_conflict_count: narrative.length,
     ...modelInfo,
   };
 }
@@ -725,6 +730,7 @@ export function mergeResults(payload, options = {}) {
       modelReadyRows: rows.filter(({ investment_model }) => investment_model?.model_ready).length,
       modelMismatchRows: rows.filter(({ model_audit }) => model_audit?.status === "mismatch").length,
       preflightBlockedRows: rows.filter(({ cloud_preflight }) => cloud_preflight?.ready === false).length,
+      narrativeConflictRows: rows.filter(({ narrative_checks }) => narrative_checks?.length).length,
     },
     ranking: ranking(rows),
     rows,
@@ -740,10 +746,10 @@ async function readText(path) {
 
 async function main() {
   const args = argsOf(process.argv.slice(2));
-  if (args.help) return process.stdout.write("node scripts/merge-public-results.mjs --input <result-rows.json|-> [--models models.json] [--require-model] [--output audit.json] [--pretty]\n");
+  if (args.help) return process.stdout.write("node scripts/merge-public-results.mjs --input <result-rows.json|-> [--models models.json] [--require-model] [--strict-narrative] [--output audit.json] [--pretty]\n");
   if (!args.input) throw new Error("--input is required");
   const models = args.models ? JSON.parse(await readText(args.models)) : null;
-  const report = mergeResults(JSON.parse(await readText(args.input)), { models, requireModel: Boolean(args.requireModel) });
+  const report = mergeResults(JSON.parse(await readText(args.input)), { models, requireModel: Boolean(args.requireModel), strictNarrative: Boolean(args.strictNarrative) });
   const output = `${JSON.stringify(report, null, args.pretty ? 2 : 0)}\n`;
   if (args.output) await writeFile(args.output, output, "utf8"); else process.stdout.write(output);
   process.exitCode = report.valid ? 0 : 1;

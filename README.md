@@ -222,11 +222,12 @@ walkthrough, including `create`, `run`, and how to read `result-rows`.
 A verified single-row NVDA run on 2026-10-23 completed with:
 
 - template `03cc5781-ddca-40e3-a9df-ccf1fe626447`, version 3 `b1a5c31b-9b10-44dc-93c9-a4dca7b5ef60`
-- final run `e56ef83b-6c9e-4ed2-ae3a-4f0ab0b3b82d`, actual cost `0.0196023 CNY`
-- cloud preflight passed `234` checks; cloud model ready, engine `1.1.0`, base value `114.517132`, MOS `-93.83%`
+- final run `1aa64499-6e2e-404e-b36b-7027d128d614`, actual cost `0.0223041 CNY`
+- cloud preflight passed `246` checks; cloud model ready, base value `136.639377`, MOS `-55.31%`
 - cloud/local model audit `matched`; invariant gate `25/25`
-- workbook 17 sheets; local audit accepted with 29 verified evidence and 3 rejected
+- workbook 17 sheets; local audit accepted with 31 verified evidence, 5 rejected, and 2 narrative/packet conflicts
 - gating test `9464a209-fe37-44fc-abd8-a001b8434119`: a bad row returned `ready=false` with 3 findings, produced 0 artifacts, and skipped all five downstream steps
+- prompt v4 allowlist: normal packet produced no unresolved references; an empty-`unknowns` negative test still produced an array citation, which the local audit rejects as `must point to an atomic leaf`
 
 The earlier AAPL run `96a6542c-...` used the old terminal-net-debt bridge; its
 values are historical and not comparable. The corrected AAPL local value is
@@ -390,7 +391,7 @@ Total out-of-pocket cost across the validation runs: **USD 1.44**.
 
 The v4 model engine has its own deterministic test suite: 37 Python tests on both
 CPython 3.9 and 3.12 (including a workbook that opens in openpyxl and is
-byte-stable) plus 78 Node tests covering preflight, model merge, recomputation
+byte-stable) plus 91 Node tests covering preflight, model merge, recomputation
 vetos, reporting, and the template contract. These tests do not consume cloud
 credits.
 
