@@ -138,8 +138,10 @@ export function checkInvariants({ packets, assumptions = null, model = null, aud
     checks.push(check("model.baseScenarioPresent", "error", Boolean(base && base.summary), `baseScenario=${baseName}`));
     const finiteFields = ["valuePerShare", "enterpriseValue", "equityValue", "marginOfSafetyPct", "netDebt"];
     const badFields = finiteFields.filter((field) => typeof summary[field] === "number" && !Number.isFinite(summary[field]));
-    const missingFields = finiteFields.filter((field) => summary[field] === undefined);
+    const nonPositiveValue = typeof summary.valuePerShare === "number" && summary.valuePerShare <= 0;
+    const missingFields = finiteFields.filter((field) => summary[field] === undefined && !(field === "marginOfSafetyPct" && nonPositiveValue));
     checks.push(check("model.baseSummaryFinite", "error", badFields.length === 0 && missingFields.length === 0, badFields.length || missingFields.length ? `bad=${badFields.join(",")} missing=${missingFields.join(",")}` : "all summary fields finite"));
+    checks.push(check("model.nonPositiveValue", "warning", true, nonPositiveValue ? "model value is non-positive; MOS is intentionally null" : "model value is positive"));
 
     const opening = asObject(model.openingBalanceSheet) ?? {};
     const openingNetDebt = Number(opening.debt ?? 0) - Number(opening.cash ?? 0);

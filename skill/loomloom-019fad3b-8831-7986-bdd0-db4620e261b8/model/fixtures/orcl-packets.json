@@ -1,0 +1,204 @@
+{
+  "identityPacket": {
+    "ticker": "ORCL",
+    "companyName": "Oracle Corporation",
+    "industry": "Enterprise software & cloud infrastructure",
+    "dataAsOf": "2026-10-23",
+    "fiscalPeriod": "FY2027 Q1 TTM",
+    "sources": [
+      "https://www.sec.gov/Archives/edgar/data/1341439/000119312526389274/orcl-20260831.htm",
+      "https://www.sec.gov/Archives/edgar/data/1341439/000119312526277521/orcl-20260531.htm"
+    ]
+  },
+  "financialPacket": {
+    "units": "USD millions",
+    "marketSnapshot": {
+      "price": 125.54,
+      "currency": "USD",
+      "asOf": "2026-10-22T20:03:42Z",
+      "pe": 20.06,
+      "marketCapUsd": 379599.82,
+      "sharesOutstanding": 3023.736
+    },
+    "annualHistory": {
+      "fiscalYearEnd": [
+        "2024-05-31",
+        "2025-05-31",
+        "2026-05-31"
+      ],
+      "revenue": [
+        52961,
+        57399,
+        67357
+      ],
+      "netIncome": [
+        10467,
+        12443,
+        17087
+      ],
+      "freeCashFlow": [
+        11807,
+        -394,
+        -23686
+      ]
+    },
+    "quarterlyMostRecent": {
+      "period": "FY2027 Q1",
+      "fiscalQuarterEnd": "2026-08-31",
+      "filed": "2026-09-11",
+      "revenue": 19345,
+      "netIncome": 4760,
+      "operatingIncome": 6728,
+      "cfo": 23103,
+      "capex": 28499,
+      "da": 3358,
+      "priorYearQuarter": {
+        "period": "FY2026 Q1",
+        "revenue": 14926,
+        "netIncome": 2927,
+        "operatingIncome": 4277,
+        "cfo": 8140,
+        "capex": 8502,
+        "da": 1773
+      },
+      "ttm": {
+        "revenue": 71776,
+        "netIncome": 18920,
+        "operatingIncome": 23057,
+        "cfo": 46940,
+        "capex": 75660,
+        "fcf": -28720,
+        "da": 10879
+      }
+    },
+    "balanceSheet": {
+      "cash": 36369,
+      "currentAssets": 55630,
+      "currentLiabilities": 47514,
+      "shortTermDebt": 7625,
+      "totalDebt": 125337,
+      "netWorkingCapital": -20628,
+      "netPPE": 127845,
+      "otherAssets": 159673,
+      "totalAssets": 303259,
+      "totalLiabilities": 236487,
+      "otherLiabilities": 111150,
+      "equity": 66772,
+      "sharesOutstanding": 3023.736
+    },
+    "unknowns": [
+      "FY2027 Q2 (quarter ending 2026-11-30) has not been filed; TTM uses Q1 FY2027 and Q1 FY2026 comparatives.",
+      "Operating lease liabilities of 34,621 and finance lease liabilities of 9,185 are excluded from totalDebt; they are fixed obligations discussed in the narrative.",
+      "The capex path is a normalization assumption, not company guidance; the model accepts only a scalar capex/revenue ratio."
+    ]
+  },
+  "qualitativePacket": {
+    "businessModel": [
+      {
+        "fact": "Oracle provides enterprise software and cloud infrastructure, including Oracle Cloud Infrastructure (OCI).",
+        "source": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526389274/orcl-20260831.htm",
+        "date": "2026-09-11",
+        "sourceType": "10-Q FY2027 Q1",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "Remaining performance obligations were $664 billion at August 31, 2026.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526389274/orcl-20260831.htm",
+        "date": "2026-09-11",
+        "sourceType": "10-Q FY2027 Q1",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "Q1 FY2027 revenue grew 29.6% year over year to $19.345 billion.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526389274/orcl-20260831.htm",
+        "date": "2026-09-11",
+        "sourceType": "10-Q FY2027 Q1",
+        "sourceTier": "S"
+      }
+    ],
+    "moatEvidence": [
+      {
+        "fact": "Oracle's database and enterprise applications are entrenched in large enterprise workloads.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526277521/orcl-20260531.htm",
+        "date": "2026-06-22",
+        "sourceType": "10-K FY2026",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "OCI is being expanded for AI training and inference workloads, supported by a $664 billion RPO.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526389274/orcl-20260831.htm",
+        "date": "2026-09-11",
+        "sourceType": "10-Q FY2027 Q1",
+        "sourceTier": "S"
+      }
+    ],
+    "managementCulture": [
+      {
+        "fact": "Safra Catz is chief executive officer of Oracle.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526277521/orcl-20260531.htm",
+        "date": "2026-06-22",
+        "sourceType": "10-K FY2026",
+        "sourceTier": "S"
+      }
+    ],
+    "capitalAllocation": [
+      {
+        "fact": "Oracle spent $28.499 billion on capital expenditures in Q1 FY2027 and $55.663 billion in FY2026.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526389274/orcl-20260831.htm",
+        "date": "2026-09-11",
+        "sourceType": "10-Q FY2027 Q1",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "Total debt was $125.337 billion at August 31, 2026, including $7.625 billion of notes payable current.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526389274/orcl-20260831.htm",
+        "date": "2026-09-11",
+        "sourceType": "10-Q FY2027 Q1",
+        "sourceTier": "S"
+      }
+    ],
+    "riskFactors": [
+      {
+        "fact": "Oracle's capex is funded partly with debt; total debt rose to $125.337 billion at August 31, 2026.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526389274/orcl-20260831.htm",
+        "date": "2026-09-11",
+        "sourceType": "10-Q FY2027 Q1",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "The company had $34.621 billion of operating lease liabilities and $9.185 billion of finance lease liabilities at August 31, 2026.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526389274/orcl-20260831.htm",
+        "date": "2026-09-11",
+        "sourceType": "10-Q FY2027 Q1",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "AI infrastructure demand and the timing of large contract deliveries can cause revenue and capex to vary.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526389274/orcl-20260831.htm",
+        "date": "2026-09-11",
+        "sourceType": "10-Q risk factors",
+        "sourceTier": "S"
+      }
+    ],
+    "contraryEvidence": [
+      {
+        "fact": "TTM free cash flow was negative $28.720 billion because capex exceeded operating cash flow.",
+        "source": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526389274/orcl-20260831.htm",
+        "date": "2026-09-11",
+        "sourceType": "10-Q FY2027 Q1",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "The stock price fell from a 52-week high of $287.19 to $125.54, reflecting concerns about capex and leverage.",
+        "source": "https://query1.finance.yahoo.com/v8/finance/chart/ORCL",
+        "date": "2026-10-22",
+        "sourceType": "Market data",
+        "sourceTier": "A"
+      }
+    ],
+    "unknowns": [
+      "Customer concentration and contract-level returns on the AI backlog are not disclosed in the packet.",
+      "No normalized owner earnings or segment-level ROIC was included."
+    ]
+  }
+}

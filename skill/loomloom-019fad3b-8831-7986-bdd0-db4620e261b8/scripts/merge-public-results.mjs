@@ -165,7 +165,11 @@ function auditModel(cloud, local) {
   if (String(cloud.baseScenario ?? "") !== String(local.baseScenario ?? "")) mismatches.push(`baseScenario differs (cloud ${cloud.baseScenario}, local ${local.baseScenario})`);
   for (const [name, scenario] of Object.entries(local.scenarios ?? {})) {
     for (const field of MODEL_NUMERIC_FIELDS) {
-      const delta = relativeDelta(cloud.scenarios?.[name]?.summary?.[field], scenario.summary?.[field]);
+      const cloudValue = cloud.scenarios?.[name]?.summary?.[field];
+      const localValue = scenario.summary?.[field];
+      // A non-positive model has no MOS; null on both sides is a match, not a mismatch.
+      if (cloudValue == null && localValue == null) continue;
+      const delta = relativeDelta(cloudValue, localValue);
       if (delta === null) mismatches.push(`${name}.${field}: not comparable`);
       else if (delta > MODEL_RELATIVE_TOLERANCE) mismatches.push(`${name}.${field}: relative delta ${delta.toExponential(2)}`);
     }
