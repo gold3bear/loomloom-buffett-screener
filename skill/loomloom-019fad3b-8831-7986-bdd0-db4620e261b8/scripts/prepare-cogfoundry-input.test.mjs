@@ -101,3 +101,23 @@ test("preserves a multi-row order, so the i-th line maps to the i-th input row",
   assert.ok(!out[1].tickerPacket.includes('"price":220.5'));
   assert.ok(out[1].tickerPacket.includes('"price":228.45'));
 });
+
+test("v4 rows emit one tickerPacket object plus modelAssumptions and asOf", () => {
+  const assumptions = JSON.stringify({ schemaVersion: "loomloom-model-assumptions/v1", scenarios: { base: { years: 5 } } });
+  const row = { ...sampleRow, modelAssumptions: assumptions, asOf: "2026-09-02" };
+  const out = prepareCogfoundryInput({ inputRows: [row] });
+  assert.equal(out.length, 1);
+  assert.deepEqual(Object.keys(out[0]).sort(), ["asOf", "modelAssumptions", "tickerPacket"]);
+  const packet = JSON.parse(out[0].tickerPacket);
+  assert.equal(packet.identityPacket.ticker, "AAPL");
+  assert.equal(packet.financialPacket.marketSnapshot.price, 220.5);
+  assert.equal(packet.qualitativePacket.businessModel[0].fact, "Apple sells iPhones, Macs, services and wearables");
+  assert.equal(out[0].modelAssumptions, assumptions);
+  assert.equal(out[0].asOf, "2026-09-02");
+});
+
+test("asOf alone still selects v4 object mode", () => {
+  const out = prepareCogfoundryInput({ inputRows: [{ ...sampleRow, asOf: "2026-09-02" }] });
+  assert.deepEqual(Object.keys(out[0]).sort(), ["asOf", "tickerPacket"]);
+  assert.equal(typeof JSON.parse(out[0].tickerPacket), "object");
+});

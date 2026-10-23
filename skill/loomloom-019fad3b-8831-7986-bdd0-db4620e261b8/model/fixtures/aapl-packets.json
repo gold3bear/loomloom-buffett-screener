@@ -1,0 +1,165 @@
+{
+  "identityPacket": {
+    "ticker": "AAPL",
+    "companyName": "Apple Inc.",
+    "industry": "Technology Hardware",
+    "dataAsOf": "2026-09-01",
+    "fiscalPeriod": "FY2025",
+    "sources": [
+      "https://www.apple.com/investor/",
+      "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193"
+    ]
+  },
+  "financialPacket": {
+    "units": "USD millions",
+    "marketSnapshot": {
+      "price": 220.5,
+      "currency": "USD",
+      "asOf": "2026-09-01T20:00:00Z",
+      "pe": 28.4,
+      "sharesOutstanding": 14800,
+      "marketCapUsd": 3263400.0
+    },
+    "annualHistory": {
+      "fiscalYearEnd": [
+        "2023-09-30",
+        "2024-09-28",
+        "2025-09-27"
+      ],
+      "revenue": [
+        383285,
+        391035,
+        416161
+      ],
+      "netIncome": [
+        96995,
+        93736,
+        112010
+      ],
+      "freeCashFlow": [
+        99584,
+        108807,
+        98767
+      ]
+    },
+    "balanceSheet": {
+      "cash": 30000,
+      "currentAssets": 145000,
+      "currentLiabilities": 80000,
+      "shortTermDebt": 10000,
+      "netPPE": 95000,
+      "totalDebt": 100000,
+      "equity": 60000,
+      "otherAssets": 5000,
+      "otherLiabilities": 15000,
+      "sharesOutstanding": 14800
+    },
+    "unknowns": []
+  },
+  "qualitativePacket": {
+    "businessModel": [
+      {
+        "fact": "Apple designs, manufactures and sells iPhone, Mac, iPad, wearables and accessories, and derives a growing share of revenue from services.",
+        "source": "https://www.apple.com/investor/",
+        "date": "2026-09-01",
+        "sourceType": "Company IR / SEC filing",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "Apple sells hardware through direct stores, online, carriers and resellers in markets worldwide.",
+        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193",
+        "date": "2026-09-01",
+        "sourceType": "Company IR / SEC filing",
+        "sourceTier": "S"
+      }
+    ],
+    "moatEvidence": [
+      {
+        "fact": "Apple's integrated hardware-software-services ecosystem creates switching costs for its installed base.",
+        "source": "https://www.apple.com/investor/",
+        "date": "2026-09-01",
+        "sourceType": "Company IR / SEC filing",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "The Apple brand supports premium pricing across iPhone and Mac product lines.",
+        "source": "https://www.apple.com/investor/",
+        "date": "2026-09-01",
+        "sourceType": "Company IR / SEC filing",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "Apple's services segment benefits from the scale of its active device installed base.",
+        "source": "https://www.apple.com/investor/",
+        "date": "2026-09-01",
+        "sourceType": "Company IR / SEC filing",
+        "sourceTier": "S"
+      }
+    ],
+    "managementCulture": [
+      {
+        "fact": "Tim Cook has served as Apple's chief executive officer since 2011.",
+        "source": "https://www.apple.com/investor/",
+        "date": "2026-09-01",
+        "sourceType": "Company IR / SEC filing",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "Apple's board includes independent directors and a lead independent director.",
+        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193",
+        "date": "2026-09-01",
+        "sourceType": "Company IR / SEC filing",
+        "sourceTier": "S"
+      }
+    ],
+    "capitalAllocation": [
+      {
+        "fact": "Apple returns capital to shareholders through dividends and open-market share repurchases.",
+        "source": "https://www.apple.com/investor/",
+        "date": "2026-09-01",
+        "sourceType": "Company IR / SEC filing",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "Apple has reduced its diluted share count over the last three fiscal years.",
+        "source": "https://www.apple.com/investor/",
+        "date": "2026-09-01",
+        "sourceType": "Company IR / SEC filing",
+        "sourceTier": "S"
+      }
+    ],
+    "riskFactors": [
+      {
+        "fact": "A substantial share of Apple's revenue depends on iPhone sales.",
+        "source": "https://www.apple.com/investor/",
+        "date": "2026-09-01",
+        "sourceType": "Company IR / SEC filing",
+        "sourceTier": "S"
+      },
+      {
+        "fact": "Apple's supply chain is concentrated in a small number of manufacturing partners and geographies.",
+        "source": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193",
+        "date": "2026-09-01",
+        "sourceType": "Company IR / SEC filing",
+        "sourceTier": "S"
+      }
+    ],
+    "contraryEvidence": [
+      {
+        "fact": "Hardware revenue is cyclical and sensitive to replacement-cycle length.",
+        "source": "https://www.apple.com/investor/",
+        "date": "2026-09-01",
+        "sourceType": "Company IR / SEC filing",
+        "sourceTier": "B"
+      },
+      {
+        "fact": "Services growth is partly offset by regulatory pressure on App Store commissions.",
+        "source": "https://www.apple.com/investor/",
+        "date": "2026-09-01",
+        "sourceType": "Company IR / SEC filing",
+        "sourceTier": "B"
+      }
+    ],
+    "unknowns": []
+  }
+}
