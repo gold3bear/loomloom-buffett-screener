@@ -1,0 +1,129 @@
+{
+  "schemaVersion": "loomloom-model-assumptions/v1",
+  "asOf": "2026-10-23",
+  "currency": "USD",
+  "units": "USD millions",
+  "baseScenario": "base",
+  "scenarios": {
+    "bear": {
+      "label": "Bear",
+      "years": 5,
+      "revenueGrowth": [
+        0.15,
+        0.12,
+        0.1,
+        0.08,
+        0.06
+      ],
+      "ebitMargin": [
+        0.3,
+        0.29,
+        0.28,
+        0.27,
+        0.26
+      ],
+      "taxRate": 0.18,
+      "daPctRevenue": 0.13,
+      "capexPctRevenue": 0.55,
+      "nwcPctRevenue": -0.2,
+      "interestRateOnDebt": 0.05,
+      "debtRepaymentPct": 0.05,
+      "dividendPayoutRatio": 0.02,
+      "buybackPctOfNetIncome": 0.01,
+      "wacc": 0.105,
+      "terminalMethod": "perpetuity",
+      "terminalGrowth": 0.025,
+      "startingRevenue": 71776
+    },
+    "base": {
+      "label": "Base",
+      "years": 5,
+      "revenueGrowth": [
+        0.25,
+        0.22,
+        0.18,
+        0.15,
+        0.12
+      ],
+      "ebitMargin": [
+        0.32,
+        0.33,
+        0.34,
+        0.35,
+        0.35
+      ],
+      "taxRate": 0.18,
+      "daPctRevenue": 0.13,
+      "capexPctRevenue": 0.45,
+      "nwcPctRevenue": -0.25,
+      "interestRateOnDebt": 0.045,
+      "debtRepaymentPct": 0.05,
+      "dividendPayoutRatio": 0.02,
+      "buybackPctOfNetIncome": 0.01,
+      "wacc": 0.09,
+      "terminalMethod": "perpetuity",
+      "terminalGrowth": 0.03,
+      "startingRevenue": 71776
+    },
+    "bull": {
+      "label": "Bull",
+      "years": 5,
+      "revenueGrowth": [
+        0.35,
+        0.3,
+        0.25,
+        0.2,
+        0.15
+      ],
+      "ebitMargin": [
+        0.33,
+        0.35,
+        0.36,
+        0.37,
+        0.38
+      ],
+      "taxRate": 0.18,
+      "daPctRevenue": 0.12,
+      "capexPctRevenue": 0.35,
+      "nwcPctRevenue": -0.3,
+      "interestRateOnDebt": 0.04,
+      "debtRepaymentPct": 0.05,
+      "dividendPayoutRatio": 0.02,
+      "buybackPctOfNetIncome": 0.01,
+      "wacc": 0.08,
+      "terminalMethod": "perpetuity",
+      "terminalGrowth": 0.035,
+      "startingRevenue": 71776
+    }
+  },
+  "sources": [
+    {
+      "field": "startingRevenue",
+      "value": "TTM revenue 71,776",
+      "source": "SEC 10-Q FY2027 Q1",
+      "date": "2026-09-11"
+    },
+    {
+      "field": "scenarios.*.capexPctRevenue",
+      "value": "bear 55% / base 45% / bull 35% of revenue",
+      "source": "normalization assumption; TTM capex was 105% of revenue",
+      "date": "2026-10-23"
+    },
+    {
+      "field": "scenarios.*.ebitMargin",
+      "value": "bear 26-30% / base 32-35% / bull 33-38%",
+      "source": "Q1 FY2027 operating margin 34.8%",
+      "date": "2026-10-23"
+    },
+    {
+      "field": "scenarios.*.wacc",
+      "value": "bear 10.5% / base 9% / bull 8%",
+      "source": "user-supplied test assumptions",
+      "date": "2026-10-23"
+    }
+  ],
+  "unknowns": [
+    "Capex and margins are normalization assumptions, not guidance.",
+    "The model accepts only a scalar capex/revenue ratio."
+  ]
+}

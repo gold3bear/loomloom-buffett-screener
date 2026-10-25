@@ -1,11 +1,13 @@
 ---
 name: "loomloom-019fad3b-8831-7986-bdd0-db4620e261b8"
-description: "Batch research long-term value of US equities. The local Agent collects and validates ticker identity, financial valuation, business quality and risk evidence; the LoomLoom public SkillBot performs parallel cloud review; the local Agent then runs evidence audit, hard vetos, deterministic ranking, and a Markdown report. Use when the user provides a US stock ticker, a watchlist (CSV/Excel/JSON), a standardized financial metrics table, asks for value-investing screening, batch comparison, or a re-run after price or filing updates."
+description: "Batch research long-term value of US equities. The local Agent collects and validates ticker identity, financial valuation, business quality and risk evidence; the LoomLoom public SkillBot performs parallel cloud review and runs a deterministic three-statement + DCF Code node; the local Agent then recomputes the model, audits evidence, applies hard vetos, ranks rows, and emits a Markdown report. Use when the user provides a US stock ticker, a watchlist (CSV/Excel/JSON), a standardized financial metrics table, asks for value-investing screening, batch comparison, investment modeling, or a re-run after price or filing updates."
 ---
 
 # US Equity Long-Term Value Batch Screening
 
-Turn the user's ticker list or table into an auditable data packet, run it through LoomLoom's parallel cloud research, then validate, merge, and produce a research report locally. Research aid only — not investment advice. We never output target prices, position sizes, or buy/sell instructions.
+Turn the user's ticker list or table into an auditable data packet, run it through LoomLoom's cloud preflight gate plus parallel research and a deterministic three-statement + DCF Code node, then validate, merge, recompute the model, and produce a research report locally. Research aid only — not investment advice. We never output target prices, position sizes, or buy/sell instructions.
+
+The model is conditional arithmetic on **explicitly supplied assumptions**. Missing a driver blocks the model; the Skill never defaults a discount rate, growth rate, or terminal multiple.
 
 ## Investment Philosophy: Buffett's Four Filters
 
@@ -31,6 +33,10 @@ The hard-veto rules in `references/decision-policy.md` implement the same discip
 - Every real run must first fetch a server quote, show the user task count, currency, and fees, and obtain explicit confirmation for that run.
 - After user confirmation, any change in tickers, data, files, Listing, or quote requires re-validation, re-quote, and re-confirmation.
 - **Every fact in a packet must carry a provenance triple: source URL, as-of date, and source tier (S = SEC EDGAR / company IR, A = MarketWatch / Yahoo Finance quote, B = secondary news, C = never). C-tier sources are not evidence.** A fact without all three is treated as unverified and goes to `unknowns` — never into an evidence-bearing field. See [section 3.1](#31-hard-rule-every-number-traces-to-a-source-url) for the full provenance discipline.
+- **Every model driver must be explicit.** `modelAssumptions` carries the growth, margin, tax, D&A, capex, NWC, interest, discount, and terminal inputs per scenario. If a driver is missing, the model returns `model_ready=false` and the row is not modeled. Never invent a WACC, growth rate, terminal multiple, or a "reasonable default" to make the model run.
+- **A model value is not a target price.** Report it as conditional arithmetic on the named assumptions, together with the current price, the margin-of-safety arithmetic, the terminal-value share, and the integrity checks. Never convert it into a buy/sell call, position size, or expected return.
+- **The cloud preflight gate must pass before paid reviews run.** `stp_preflight` returns `ready=false` plus findings; the five downstream steps are skipped. Inspect the findings, fix the packet or assumptions, and re-run. Never bypass the gate or fabricate the missing field.
+- **The cloud model must match the local recomputation.** `merge-public-results.mjs --models <model.json>` recomputes every scenario from the same source. A mismatch beyond 1e-4 relative adds the `model_recompute_mismatch` veto.
 
 ## User Entry Points
 
@@ -46,6 +52,13 @@ Do not ask end users to hand-author `identityPacket`, `financialPacket`, or `qua
 ## Install LoomLoom CLI
 
 The cloud steps (readiness check, public-contract read, quote, run) require the `loomloom` CLI. Install it if missing.
+
+**Code-node modeling needs `@cogfoundry/loomloom@0.6.2-beta.1` or newer.** Older CLIs do not ship the Code/Loop manual and cannot check a `codeProfile` step:
+
+```bash
+npm install -g @cogfoundry/loomloom@0.6.2-beta.1
+loomloom --version
+```
 
 ### One-shot install prompt
 
@@ -233,6 +246,47 @@ node scripts/prepare-market-input.mjs --input <packets.json> --output <market-re
 
 Show the user a per-ticker summary: data-as-of, price timestamp, source coverage, unknowns, and degradations. Do not display large internal JSON blocks.
 
+### 4.5 Investment model: assumptions, local recomputation, workbook
+
+Run this section when the user asks for modeling or supplies DCF assumptions. Skip it for a pure four-filter screen, but say explicitly that the row has no valuation model.
+
+1. **Collect the opening balance sheet.** `financialPacket.balanceSheet` needs `equity`, `sharesOutstanding`, working capital (or current assets/liabilities), and net PP&E (or total assets). See [data-contract.md](references/data-contract.md).
+2. **Collect explicit assumptions per scenario.** `modelAssumptions` is a JSON string with `years`, revenue growth, EBIT margin, tax, D&A, capex, NWC, interest, debt repayment, WACC, and terminal method/value. There are no defaults; a missing driver is an error, not a prompt for a guess. The full schema is in [investment-model.md](references/investment-model.md).
+3. **Preflight with the model gate.**
+   ```bash
+   node scripts/preflight.mjs \
+     --input <packets.json> --assumptions <assumptions.json> \
+     --require-model --output <preflight.json> --pretty
+   ```
+   Exit code `1` means the packet or assumptions are not model-ready. Do not quote a modeling run until it passes.
+4. **Run the engine locally.** This is the reference the audit trusts:
+   ```bash
+   node scripts/run-model.mjs \
+     --packets <packets.json> --assumptions <assumptions.json> \
+     --out <model.json> --xlsx <model.xlsx>
+   ```
+   It writes the model JSON and, optionally, the xlsx workbook. Python 3.9+ is required; the engine uses only the standard library.
+5. **Run the invariant gate.** This is the single pass/fail gate across documents:
+   ```bash
+   node scripts/check-invariants.mjs \
+     --packets <packets.json> --assumptions <assumptions.json> \
+     --model <model.json> --xlsx <model.xlsx> --require-model \
+     --output <invariants.json> --pretty
+   ```
+   Exit code `1` means an invariant failed (ticker/price/as-of mismatch, broken accounting check, sensitivity center drift, reverse-DCF miss, workbook part missing, or audit mismatch). Do not quote until it passes.
+6. **Confirm the compact cloud copy is current and the template embeds it.**
+   ```bash
+   python3.12 model/minify_code.py --check
+   node scripts/sync-model-code.mjs --check
+   ```
+   The server rejects `code.source` above 65,536 bytes, and the compactor must run under CPython 3.12 to match the cloud runtime. If either check reports drift, regenerate `valuation_model.cloud.py` and rerun `sync-model-code.mjs` before creating a template version.
+7. **Show the user the modeling summary before quoting:** model-ready status, base value per share, current price, margin of safety, terminal-value share, and every warning. State plainly that the model value is conditional arithmetic, not a target price.
+8. **If the model is not ready:** report the missing inputs and errors. Either fix the packet/assumptions, or ask the user whether to run the four-filter screen without a model (v3 template). Never silently drop the model or substitute a default.
+
+The modeling template is `templates/buffett-four-filters-model.cogfoundry/template.json` (v4, eight steps: `stp_preflight` gate, four LLM reviews, `stp_model01`, `stp_audit1`, and `stp_report`). The v3 four-filter template remains available for runs without modeling.
+
+**Production path.** The current public Listing's input schema accepts only the three packets. Until a new Listing version exposes `modelAssumptions`, run the model locally and pass `--models` to the audit. The v4 private template is for controlled Code review; it does not by itself change the public Listing, and publishing a new Listing version requires separate creator confirmation.
+
 ### 5. Quote and confirm
 
 Inputs are already programmatic, so use the JSON Market flow:
@@ -266,17 +320,18 @@ The local merger identifies the four research dimensions by the public output JS
 
 ```bash
 node scripts/merge-public-results.mjs \
-  --input <result-rows.json> --output <local-audit.json> --pretty
+  --input <result-rows.json> --models <model.json> \
+  --require-model --output <local-audit.json> --pretty
 
 node scripts/render-report.mjs \
   --input <local-audit.json> --output <report.md>
 ```
 
-Only rows whose evidence paths resolve to the input row, whose `source_value` matches the atomic fact exactly, whose price and fiscal period are valid, and which trigger no hard veto enter the ranking. Rejected evidence never feeds conclusions. See [decision-policy.md](references/decision-policy.md) for the full rules.
+`--models` attaches the local reference model, compares it against any model object the cloud Code node returned, and adds `model_recompute_mismatch` on disagreement. `--require-model` vetoes rows without a ready model. Only rows whose evidence paths resolve to the input row, whose `source_value` matches the atomic fact exactly, whose price and fiscal period are valid, whose model passes the recomputation audit, and which trigger no hard veto enter the ranking. Rejected evidence and failed models never feed conclusions. See [decision-policy.md](references/decision-policy.md) and [investment-model.md](references/investment-model.md) for the full rules.
 
 ### 8. Deliver
 
-Deliver the report, audit JSON, run ID, order ID, data and price cutoffs, and actual fees (if the service returns them). Use the following decision tiers:
+Deliver the report, audit JSON, run ID, order ID, data and price cutoffs, and actual fees (if the service returns them). If modeling ran, also deliver `model.json`, the xlsx workbook, the assumptions file with its source list, and the cloud-vs-local model audit status. Use the following decision tiers:
 
 - `deep_research` — worth a human deep dive.
 - `watchlist` — observe; wait for better data or price.
@@ -288,6 +343,7 @@ The user may append tickers or update filings/prices for a re-run; any input cha
 ## Resource Routing
 
 - Preparing or auditing input → read [references/data-contract.md](references/data-contract.md).
+- Modeling assumptions, formulas, checks, and failure modes → read [references/investment-model.md](references/investment-model.md).
 - Merging, explaining ranking, or handling validation failures → read [references/decision-policy.md](references/decision-policy.md).
-- Run local tests: `node --test scripts/*.test.mjs`.
+- Run local tests: `node --test scripts/*.test.mjs` and `python3 -m unittest discover -s model -p "test_*.py"`.
 - After editing the Skill, validate the directory with `skill-creator`'s `quick_validate.py`.

@@ -1,4 +1,7 @@
-# Buffett Four-Filters US Equity Screening — CogFoundry TemplateSpec
+# Buffett Four-Filters US Equity Screening — CogFoundry TemplateSpec (v3)
+
+> v4 adds a deterministic three-statement + DCF Code node and an xlsx artifact.
+> See [`../buffett-four-filters-model.cogfoundry/`](../buffett-four-filters-model.cogfoundry/).
 
 This directory holds the **cloud-side** half of the LoomLoom US Equity Value Screening Skill. It pairs with the local Skill at `../../skill/loomloom-019fad3b-8831-7986-bdd0-db4620e261b8/`.
 

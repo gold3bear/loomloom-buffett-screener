@@ -42,6 +42,31 @@ Any of the following prevents a row from entering `deep_research`:
 8. Valuation `judgment_state` is `insufficient_margin_of_safety_verdict` (the LLM explicitly concludes the current price is above a defensible intrinsic value).
 9. Unauthorized forecast numbers or target prices are detected in the cloud output.
 10. Rejected evidence outweighs verified evidence, or rejected evidence hits 6.
+11. `--require-model` is set and the row has no local model (`model_required_but_missing`).
+12. `--require-model` is set and the model is not ready (`model_not_ready`).
+13. The cloud model and the local recomputation disagree beyond 1e-4 relative (`model_recompute_mismatch`).
+14. The base-scenario margin of safety is below -50% while the valuation dimension claims `eligible_for_manual_deep_research` (`model_contradicts_valuation_verdict`).
+
+## Model Integration (v4)
+
+The investment model is an independent, reproducible valuation anchor. It does
+**not** change the four-dimension scores and does not by itself upgrade or
+downgrade a row. Its role is to make the valuation conversation concrete and to
+catch contradictions:
+
+- A ready model adds `valuePerShare`, `marginOfSafetyPct`, the scenario range, the
+  terminal-value share, and the integrity checks to the report.
+- `model_verdict` is descriptive, never a recommendation:
+  `margin_of_safety_present` (MOS ≥ 30%), `at_or_near_model_value` (0-30%),
+  `price_above_model_value` (< 0), `model_not_ready`, `not_modeled`.
+- A `model_recompute_mismatch` is a hard failure: the cloud Code node and the
+  local engine must agree. The local engine is the reference.
+- A model that says the price is more than 50% above the base-case value while the
+  LLM claims an unqualified deep-research valuation is a contradiction, not a
+  difference of style; it is vetoed.
+- The model never supplies normalization that the packet does not contain. If the
+  assumptions are missing, the row is simply unmodeled; that is not evidence of
+  cheapness or expensiveness.
 
 ## 3-Tier Valuation Calibration (added in v3)
 
