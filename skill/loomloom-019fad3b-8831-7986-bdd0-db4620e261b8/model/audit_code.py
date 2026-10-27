@@ -306,31 +306,20 @@ def _artifact_path(value: Any) -> Optional[str]:
     return None
 
 
-def _audit_workbook(workbook: Any, findings: List[Dict[str, str]]) -> Dict[str, Any]:
-    """Structural check of the xlsx artifact (sheet names/count), not cell values."""
-    import zipfile
-
-    path = _artifact_path(workbook)
-    if not path:
-        return {"present": False}
-    try:
-        with zipfile.ZipFile(path) as archive:
-            names = set(archive.namelist())
-            if "xl/workbook.xml" not in names:
-                findings.append(_issue("WORKBOOK_INVALID", "error", "workbook", "xl/workbook.xml is missing"))
-                return {"present": True, "sheets": 0}
-            workbook_xml = archive.read("xl/workbook.xml").decode("utf-8", "replace")
-    except Exception as exc:
-        findings.append(_issue("WORKBOOK_INVALID", "error", "workbook", "cannot open workbook: %s" % exc))
-        return {"present": True, "sheets": 0}
-    sheets = re.findall(r'<sheet[^>]+name="([^"]+)"', workbook_xml)
+def _audit_workbook_manifest(manifest: Any, findings: List[Dict[str, str]]) -> Dict[str, Any]:
+    """Validate the model's actual xlsx sheet manifest (no xlsx artifact input needed)."""
     required = ("Cover", "Assumptions", "Historical", "Sensitivity", "Checks")
+    if not isinstance(manifest, dict) or not manifest.get("present"):
+        findings.append(_issue("WORKBOOK_MANIFEST_MISSING", "warning", "workbookManifest", "workbook manifest is absent; structural check skipped"))
+        return {"present": False}
+    sheets = [str(item) for item in manifest.get("sheets", []) if isinstance(item, str)]
+    count = manifest.get("count") if isinstance(manifest.get("count"), int) else len(sheets)
     missing = [name for name in required if name not in sheets]
     if missing:
-        findings.append(_issue("WORKBOOK_SHEETS_MISSING", "error", "workbook", "missing sheets: %s" % ", ".join(missing)))
-    if len(sheets) < 15:
-        findings.append(_issue("WORKBOOK_TOO_FEW_SHEETS", "warning", "workbook", "only %d sheets; expected at least 15" % len(sheets)))
-    return {"present": True, "sheets": len(sheets), "names": sheets[:40]}
+        findings.append(_issue("WORKBOOK_SHEETS_MISSING", "error", "workbookManifest", "missing sheets: %s" % ", ".join(missing)))
+    if count < 15:
+        findings.append(_issue("WORKBOOK_TOO_FEW_SHEETS", "warning", "workbookManifest", "only %d sheets; expected at least 15" % count))
+    return {"present": True, "sheets": count, "requiredPresent": {name: name in sheets for name in required}, "sha256": manifest.get("sha256")}
 
 
 def _model_audit(model: Dict[str, Any], packet: Dict[str, Any], findings: List[Dict[str, str]]) -> Dict[str, Any]:
@@ -435,7 +424,7 @@ def audit(inputs: Dict[str, Any]) -> Dict[str, Any]:
             findings.append(_issue("REVIEW_MISSING", "error", dimension, "review is missing or invalid"))
     model = inputs.get("model") if isinstance(inputs.get("model"), dict) else {}
     model_audit = _model_audit(model, packet, findings)
-    workbook_audit = _audit_workbook(inputs.get("workbook"), findings)
+    workbook_audit = _audit_workbook_manifest(inputs.get("workbookManifest"), findings)
     findings.extend(_narrative(reviews, packet))
     scores = _score_reviews(reviews, evidence, model_audit, findings)
     for veto in scores["veto_items"]:

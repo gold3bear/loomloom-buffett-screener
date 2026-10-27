@@ -34,11 +34,13 @@ gate) and cannot be influenced by LLM prose. It reads two template inputs:
 - `asOf` — optional freshness reference; blank falls back to
   `modelAssumptions.asOf`, then the run date.
 
-It emits two outputs:
+It emits three outputs:
 
 - `model` — a `loomloom-investment-model/v1` object.
 - `workbook` — an xlsx artifact with Cover, Assumptions, Historical, P&L/BS/CF/DCF
   per scenario, Sensitivity, and Checks sheets.
+- `workbookManifest` — the sheet names/count read back from the generated xlsx;
+  `stp_audit1` validates required sheets and records `audit.workbook`.
 
 The audit step consumes the four review texts and the model. It resolves every
 evidence/falsification path, checks narrative numbers, computes the four-dimension

@@ -255,3 +255,59 @@ model + audit + report + workbook
 > **v9 把“单行的模型、审计、报告”从本地搬到了云端；但没有把“输入构造、批量排名、workbook 结构校验”搬走。**
 
 如果按“本地文件依赖”单独打分，v9 明确优于原版；如果按“公开可运行产品”，v9 仍受生产 Code 未开通限制。两者不是一回事。
+
+## 11. 方案 A 已实现：workbook manifest
+
+v11 新增：
+
+```text
+stp_model01  -> workbookManifest (object)
+stp_audit1   -> 校验 workbookManifest
+```
+
+manifest 由模型实际读取生成的 xlsx 得到：
+
+```json
+{
+  "present": true,
+  "count": 17,
+  "sheets": ["Cover", "Assumptions", "Historical", "..."],
+  "requiredPresent": {
+    "Cover": true,
+    "Assumptions": true,
+    "Historical": true,
+    "Sensitivity": true,
+    "Checks": true
+  }
+}
+```
+
+audit 校验：
+
+- 必需 sheet 是否存在；
+- sheet 数量是否 >= 15；
+- 结果写入 `audit.workbook`。
+
+### 影响
+
+| 项目 | 之前 | 现在 |
+|---|---|---|
+| 生成 workbook | 云端 | 云端 |
+| 结构检查 | 本地 `check-invariants` | **云端 manifest** |
+| 单元格级校验 | 本地 | 仍本地 |
+| xlsx artifact 输入 | 不需要 | 仍不需要 |
+
+所以本地依赖进一步减少：
+
+```text
+check-invariants 的 sheet 结构部分 -> 云端
+check-invariants 的单元格/跨文档部分 -> 本地可选
+```
+
+验证：
+
+- 模板 v11 `e5b0db0c-6eeb-4157-a1d7-8a183274f398`
+- ORCL run `c2ede575-c01d-4aff-b733-9d5b87afd410`
+- `audit.workbook.sheets = 17`
+- 所有 required sheet = true
+- 该 run 因 evidence quarantine 被拒，不是 workbook 问题

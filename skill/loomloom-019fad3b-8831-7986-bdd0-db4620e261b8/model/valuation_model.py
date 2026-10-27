@@ -1475,11 +1475,50 @@ def _workbook_sheets(model: Dict[str, Any]) -> List[Dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
+def _workbook_manifest(path: str) -> Dict[str, Any]:
+    """Read the generated xlsx and report the actual sheet structure."""
+    required = ["Cover", "Assumptions", "Historical", "Sensitivity", "Checks"]
+    if not path:
+        return {"present": False, "count": 0, "sheets": [], "requiredPresent": {name: False for name in required}, "error": "workbook path is empty"}
+    try:
+        with zipfile.ZipFile(path) as archive:
+            names = set(archive.namelist())
+            if "xl/workbook.xml" not in names:
+                return {"present": True, "count": 0, "sheets": [], "requiredPresent": {name: False for name in required}, "error": "xl/workbook.xml is missing"}
+            xml = archive.read("xl/workbook.xml").decode("utf-8", "replace")
+        sheets = []
+        cursor = 0
+        while True:
+            start = xml.find("<sheet ", cursor)
+            if start < 0:
+                break
+            end = xml.find(">", start)
+            if end < 0:
+                break
+            tag = xml[start:end]
+            name_start = tag.find('name="')
+            if name_start >= 0:
+                name_start += len('name="')
+                name_end = tag.find('"', name_start)
+                if name_end > name_start:
+                    sheets.append(tag[name_start:name_end])
+            cursor = end + 1
+        return {
+            "present": True,
+            "count": len(sheets),
+            "sheets": sheets,
+            "requiredPresent": {name: name in sheets for name in required},
+        }
+    except Exception as exc:
+        return {"present": False, "count": 0, "sheets": [], "requiredPresent": {name: False for name in required}, "error": str(exc)}
+
+
 def main(inputs: Any) -> Dict[str, Any]:
     """LoomLoom Code node entrypoint.
 
     Declared inputs: ``tickerPacket`` (string), ``assumptions`` (string).
-    Declared outputs: ``model`` (object value), ``workbook`` (xlsx artifact).
+    Declared outputs: ``model`` (object value), ``workbook`` (xlsx artifact),
+    ``workbookManifest`` (object value read back from the generated xlsx).
     """
     if not isinstance(inputs, dict):
         inputs = {}
@@ -1494,7 +1533,8 @@ def main(inputs: Any) -> Dict[str, Any]:
         model.setdefault("errors", []).append(_issue("WORKBOOK_WRITE_FAILED", "workbook", str(exc)))
         model["model_ready"] = False
         workbook_path = ""
-    return {"model": model, "workbook": workbook_path}
+    manifest = _workbook_manifest(workbook_path)
+    return {"model": model, "workbook": workbook_path, "workbookManifest": manifest}
 
 
 def _cli(argv: Optional[Sequence[str]] = None) -> int:

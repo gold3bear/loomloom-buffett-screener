@@ -56,12 +56,15 @@ def model() -> dict:
     }
 
 
-def audit(review_data=None, model_data=None):
-    return audit_code.audit({
+def audit(review_data=None, model_data=None, manifest=None):
+    payload = {
         "tickerPacket": json.dumps(packet()), "business": json.dumps((review_data or reviews())["business"]),
         "management": json.dumps((review_data or reviews())["moat"]), "financial": json.dumps((review_data or reviews())["financial"]),
         "valuation": json.dumps((review_data or reviews())["valuation"]), "model": model_data if model_data is not None else model(),
-    })
+    }
+    if manifest is not None:
+        payload["workbookManifest"] = manifest
+    return audit_code.audit(payload)
 
 
 class AuditTests(unittest.TestCase):
@@ -102,6 +105,18 @@ class AuditTests(unittest.TestCase):
         self.assertTrue(result["accepted"], result["findings"])
         self.assertTrue(any(item["code"] == "EVIDENCE_QUARANTINED" for item in result["findings"]))
         self.assertGreaterEqual(result["audit"]["evidence"]["byDimension"]["moat"], 1)
+
+    def test_workbook_manifest_is_checked_when_present(self):
+        manifest = {"present": True, "count": 17, "sheets": ["Cover", "Assumptions", "Historical", "Sensitivity", "Checks"] + ["S%d" % i for i in range(12)]}
+        result = audit(manifest=manifest)
+        self.assertTrue(result["accepted"], result["findings"])
+        self.assertEqual(result["audit"]["workbook"]["sheets"], 17)
+
+    def test_workbook_missing_required_sheet_rejects(self):
+        manifest = {"present": True, "count": 17, "sheets": ["Cover", "Assumptions", "Historical"] + ["S%d" % i for i in range(14)]}
+        result = audit(manifest=manifest)
+        self.assertFalse(result["accepted"])
+        self.assertTrue(any(item["code"] == "WORKBOOK_SHEETS_MISSING" for item in result["findings"]))
 
     def test_narrative_conflict_is_a_warning(self):
         data = reviews()

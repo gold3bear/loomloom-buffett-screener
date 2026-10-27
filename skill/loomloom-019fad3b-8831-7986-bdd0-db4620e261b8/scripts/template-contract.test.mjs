@@ -63,7 +63,7 @@ test("code step has matching inputs/bindings and no model selection", async () =
     assert.equal(step.inputBindings[key].source, "templateInput", key);
     assert.ok(canonicalSpecV2.templateInputs[step.inputBindings[key].inputKey], key);
   }
-  assert.deepEqual(Object.keys(step.code.outputs).sort(), ["model", "workbook"]);
+  assert.deepEqual(Object.keys(step.code.outputs).sort(), ["model", "workbook", "workbookManifest"]);
   assert.equal(step.code.outputs.workbook.kind, "artifact");
   assert.equal(step.code.outputs.workbook.mimeType, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   assert.equal(step.code.outputs.model.kind, "value");
@@ -118,7 +118,7 @@ test("preflight gate is wired as a boolean when-condition", async () => {
   assert.ok(audit);
   assert.deepEqual(audit.dependsOn.sort(), ["stp_business", "stp_financial", "stp_management", "stp_model01", "stp_preflight", "stp_valuation"].sort());
   assert.deepEqual(audit.when, { stepId: "stp_preflight", portId: "ready", equals: true });
-  assert.deepEqual(Object.keys(audit.code.inputs).sort(), ["business", "financial", "management", "model", "tickerPacket", "valuation"]);
+  assert.deepEqual(Object.keys(audit.code.inputs).sort(), ["business", "financial", "management", "model", "tickerPacket", "valuation", "workbookManifest"]);
   assert.deepEqual(Object.keys(audit.code.outputs).sort(), ["accepted", "audit", "findings", "model"]);
   assert.equal(audit.code.outputs.accepted.valueType, "boolean");
   assert.equal(audit.inputBindings.model.source, "stepOutput");

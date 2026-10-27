@@ -31,7 +31,7 @@ v4 preflight. The v3 template remains available for non-modeling runs.
 
 ## Validation
 
-- 95 Node tests, 48 Python tests
+- 95 Node tests, 50 Python tests
 - Test server: template v9 `7ca2a5d6-dbd7-4e4f-85c1-004d1456bd44` (quarantine repair + cloud report)
 - Final NVDA run `1aa64499-6e2e-404e-b36b-7027d128d614`: preflight ready (246 checks),
   model ready, cloud/local matched, invariant gate 25/25, 17-sheet workbook,
@@ -78,3 +78,17 @@ in iteration 1 (50 verified / 0 quarantined, score 83). The watch-level
 estimatedCost was `7.5245912 CNY` for both retry runs, versus about `0.05 CNY`
 for the stable v9 runs; this looks like a flat Loop fee and needs billing
 confirmation before using the retry template in production.
+
+## Workbook manifest cloud check (v11)
+
+`stp_model01` now emits a third output, `workbookManifest`, read back from the
+generated xlsx (sheet names, count, required sheets). `stp_audit1` validates it
+and records `audit.workbook`; missing required sheets are a hard error.
+
+This moves the structural sheet check to the cloud without requiring xlsx
+artifact input. The full cell-level `check-invariants` remains optional/local.
+
+Test template v11: `e5b0db0c-6eeb-4157-a1d7-8a183274f398`
+(definition `ec24383c...`). ORCL run `c2ede575-c01d-4aff-b733-9d5b87afd410`
+confirmed `workbook.sheets=17` and `requiredPresent` all true; the run itself
+was rejected on evidence quarantine, not on the workbook manifest.

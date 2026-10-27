@@ -139,7 +139,7 @@ test("v4 template is a canonical v2 spec with a codeProfile step", async () => {
   const codeStep = codeSteps.find((step) => step.stepId === "stp_model01");
   assert.ok(codeStep);
   assert.deepEqual(Object.keys(codeStep.code.inputs).sort(), ["assumptions", "tickerPacket"]);
-  assert.deepEqual(Object.keys(codeStep.code.outputs).sort(), ["model", "workbook"]);
+  assert.deepEqual(Object.keys(codeStep.code.outputs).sort(), ["model", "workbook", "workbookManifest"]);
   assert.equal(codeStep.code.outputs.workbook.kind, "artifact");
   assert.deepEqual(Object.keys(codeStep.inputBindings).sort(), ["assumptions", "tickerPacket"]);
   assert.equal(codeStep.inputBindings.assumptions.inputKey, "modelAssumptions");
