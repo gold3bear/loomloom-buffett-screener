@@ -95,6 +95,7 @@ recomputation** that run the same reviewed Python source:
 |---|---|
 | `templates/buffett-four-filters-model.cogfoundry/` | Eight-step stable template: `stp_preflight` gate + four LLM reviews + `stp_model01` + `stp_audit1` + `stp_report` |
 | `templates/buffett-four-filters-retry.cogfoundry/` | Experimental bounded-retry template: four reviews inside a two-round Loop with feedback-guided prompts and a Code judge |
+| `templates/buffett-cloud-ranking.cogfoundry/` | Deterministic cross-row ranking + batch Markdown for v9 audit rows; no LLM |
 | `skill/.../model/preflight_code.py` | Cloud preflight gate: packet, freshness, sources, units, market cap, balance sheet, tiers, DCF drivers |
 | `skill/.../model/valuation_model.py` | Deterministic engine: three statements, DCF, reverse DCF, sensitivity, xlsx writer (stdlib only) |
 | `skill/.../model/valuation_model.cloud.py` | Compact, semantically identical copy injected into the template (Code limit 65,536 bytes) |
@@ -394,9 +395,9 @@ Key results:
 
 Total out-of-pocket cost across the validation runs: **USD 1.44**.
 
-The v4 model engine has its own deterministic test suite: 50 Python tests on both
+The v4 model engine has its own deterministic test suite: 53 Python tests on both
 CPython 3.9 and 3.12 (including a workbook that opens in openpyxl and is
-byte-stable) plus 95 Node tests covering preflight, model merge, recomputation
+byte-stable) plus 97 Node tests covering preflight, model merge, recomputation
 vetos, reporting, and the template contract. These tests do not consume cloud
 credits.
 

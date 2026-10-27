@@ -31,7 +31,7 @@ v4 preflight. The v3 template remains available for non-modeling runs.
 
 ## Validation
 
-- 95 Node tests, 50 Python tests
+- 97 Node tests, 53 Python tests
 - Test server: template v9 `7ca2a5d6-dbd7-4e4f-85c1-004d1456bd44` (quarantine repair + cloud report)
 - Final NVDA run `1aa64499-6e2e-404e-b36b-7027d128d614`: preflight ready (246 checks),
   model ready, cloud/local matched, invariant gate 25/25, 17-sheet workbook,
@@ -92,3 +92,12 @@ Test template v11: `e5b0db0c-6eeb-4157-a1d7-8a183274f398`
 (definition `ec24383c...`). ORCL run `c2ede575-c01d-4aff-b733-9d5b87afd410`
 confirmed `workbook.sheets=17` and `requiredPresent` all true; the run itself
 was rejected on evidence quarantine, not on the workbook manifest.
+
+## Cloud ranking template
+
+`templates/buffett-cloud-ranking.cogfoundry/` adds a single Code step that ranks
+compact v9 audit rows (score, MOS, evidence, veto) and emits a Markdown artifact.
+No LLM or network. Test template `5c639cf5-232e-4a04-9145-251e61ce595d` v1
+`bcb3bf36-a8b5-4759-9f55-796ef3860708`, run
+`fd023094-64a7-4094-9058-b0a59d4c184d`: 3 valid rows, top 2, ORCL vetoed and
+retained.

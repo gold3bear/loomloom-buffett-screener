@@ -640,3 +640,14 @@ accepted, 45 verified / 6 quarantined, score 71. NVDA run
 `fcb051ff-1082-44ec-85c0-1e546b9271a4` also accepted in iteration 1 with 50
 verified / 0 quarantined and score 83; the watch estimatedCost was
 `7.5245912 CNY` for both retry runs, versus about `0.05 CNY` for stable v9.
+
+
+## 16. Cloud ranking
+
+`templates/buffett-cloud-ranking.cogfoundry/` is a separate single-Code-step
+template for cross-row ranking. It accepts compact audit rows, sorts by score,
+MOS and verified evidence, marks vetoes, and writes `ranking.md`. It does not
+call an LLM or fetch data.
+
+This replaces the local merge/ranking post-processing for batch review; data
+preparation and workbook cell-level checks remain local/optional.

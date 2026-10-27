@@ -1,0 +1,101 @@
+{
+  "meta": {
+    "name": "US Value Screen \u2014 Cloud Ranking",
+    "description": "Deterministic cross-row ranking and batch Markdown for v9 audit rows. No LLM, no network; research aid only.",
+    "primaryOutputType": "code"
+  },
+  "templateInputs": {
+    "rankRows": {
+      "kind": "value",
+      "valueType": "string",
+      "required": true,
+      "blankPolicy": "error",
+      "presentation": {
+        "label": "Audit rows JSON",
+        "order": 1
+      }
+    },
+    "topN": {
+      "kind": "value",
+      "valueType": "integer",
+      "required": true,
+      "blankPolicy": "error",
+      "presentation": {
+        "label": "Top N",
+        "order": 2
+      }
+    }
+  },
+  "steps": [
+    {
+      "stepId": "stp_rank01",
+      "displayName": "Rank audit rows and render batch report",
+      "executionBinding": {
+        "kind": "codeProfile"
+      },
+      "code": {
+        "language": "python",
+        "entrypoint": "main",
+        "source": "#!/usr/bin/env python3\n# -*- coding: utf-8 -*-\n\"\"\"Deterministic cross-row ranking for v9 cloud audit rows.\n\nInput is a JSON array of compact rows (or full audit objects). No network, no LLM.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport json\nimport math\nfrom typing import Any, Dict, List, Optional\n\n\ndef _num(value: Any) -> Optional[float]:\n    if value is None or isinstance(value, bool):\n        return None\n    try:\n        number = float(value)\n    except (TypeError, ValueError):\n        return None\n    return number if math.isfinite(number) else None\n\n\ndef _text(value: Any) -> str:\n    return str(value if value is not None else \"\").strip()\n\n\ndef _obj(value: Any) -> Dict[str, Any]:\n    return value if isinstance(value, dict) else {}\n\n\ndef _first_number(*values: Any) -> Optional[float]:\n    for value in values:\n        number = _num(value)\n        if number is not None:\n            return number\n    return None\n\n\ndef _normalise(raw: Any, index: int) -> Optional[Dict[str, Any]]:\n    row = _obj(raw)\n    audit = _obj(row.get(\"audit\"))\n    if audit:\n        row = {**row, **audit}\n    ticker = _text(row.get(\"ticker\") or row.get(\"symbol\")).upper()\n    score = _first_number(row.get(\"score\"), row.get(\"overall_score\"), row.get(\"overallScore\"))\n    if not ticker or score is None or score < 0 or score > 100:\n        return None\n    evidence = _obj(row.get(\"evidence\"))\n    veto = row.get(\"veto\") if isinstance(row.get(\"veto\"), list) else row.get(\"veto_items\")\n    veto = veto if isinstance(veto, list) else []\n    findings = row.get(\"findings\") if isinstance(row.get(\"findings\"), list) else []\n    decision = _text(row.get(\"decision\") or \"unrated\").lower()\n    return {\n        \"index\": index,\n        \"ticker\": ticker,\n        \"companyName\": _text(row.get(\"companyName\") or row.get(\"company_name\")),\n        \"score\": round(score, 2),\n        \"decision\": decision,\n        \"confidence\": _text(row.get(\"confidence\") or \"unknown\").lower(),\n        \"price\": _first_number(row.get(\"price\")),\n        \"modelValue\": _first_number(row.get(\"modelValue\"), row.get(\"valuePerShare\"), row.get(\"model_value\")),\n        \"mos\": _first_number(row.get(\"mos\"), row.get(\"marginOfSafetyPct\"), row.get(\"margin_of_safety\")),\n        \"evidenceVerified\": int(_first_number(row.get(\"evidenceVerified\"), evidence.get(\"verified\")) or 0),\n        \"evidenceRejected\": int(_first_number(row.get(\"evidenceRejected\"), evidence.get(\"rejected\")) or 0),\n        \"vetoed\": bool(row.get(\"vetoed\")) or bool(veto),\n        \"vetoItems\": [str(item) for item in veto[:20]],\n        \"findingCodes\": [str(_obj(item).get(\"code\") or item) for item in findings[:20]],\n    }\n\n\ndef _sort_key(row: Dict[str, Any]):\n    mos = row[\"mos\"]\n    return (\n        -row[\"score\"],\n        -(mos if mos is not None else -1e9),\n        -row[\"evidenceVerified\"],\n        row[\"ticker\"],\n    )\n\n\ndef main(inputs: Any) -> Dict[str, Any]:\n    if not isinstance(inputs, dict):\n        inputs = {}\n    raw = inputs.get(\"rankRows\")\n    if isinstance(raw, str):\n        try:\n            rows = json.loads(raw)\n        except ValueError as exc:\n            raise ValueError(\"rankRows is not valid JSON: %s\" % exc)\n    else:\n        rows = raw\n    if not isinstance(rows, list):\n        raise ValueError(\"rankRows must be a JSON array\")\n    top_n = int(_num(inputs.get(\"topN\")) or 20)\n    top_n = max(1, min(100, top_n))\n    normalised = [item for item in (_normalise(value, index) for index, value in enumerate(rows)) if item]\n    normalised.sort(key=_sort_key)\n    for rank, row in enumerate(normalised, start=1):\n        row[\"rank\"] = rank\n    decisions: Dict[str, int] = {}\n    for row in normalised:\n        decisions[row[\"decision\"]] = decisions.get(row[\"decision\"], 0) + 1\n    average = round(sum(row[\"score\"] for row in normalised) / len(normalised), 2) if normalised else None\n    summary = {\n        \"rows\": len(rows),\n        \"validRows\": len(normalised),\n        \"invalidRows\": len(rows) - len(normalised),\n        \"topN\": top_n,\n        \"decisions\": decisions,\n        \"averageScore\": average,\n        \"vetoed\": sum(1 for row in normalised if row[\"vetoed\"]),\n        \"negativeModelValue\": sum(1 for row in normalised if row[\"modelValue\"] is not None and row[\"modelValue\"] <= 0),\n    }\n    top = normalised[:top_n]\n    lines = [\n        \"# US Value Screen \u2014 Cloud Ranking\",\n        \"\",\n        \"> Deterministic cross-row ranking of v9 audit rows. Research aid only; not investment advice.\",\n        \"\",\n        \"## Summary\",\n        \"\",\n        \"- Rows: **%d** (%d valid, %d invalid)\" % (summary[\"rows\"], summary[\"validRows\"], summary[\"invalidRows\"]),\n        \"- Average score: **%s**\" % (\"\u2014\" if average is None else average),\n        \"- Vetoed: **%d**; non-positive model value: **%d**\" % (summary[\"vetoed\"], summary[\"negativeModelValue\"]),\n        \"- Decisions: %s\" % (\", \".join(\"%s=%d\" % item for item in sorted(decisions.items())) or \"\u2014\"),\n        \"\",\n        \"## Top %d\" % top_n,\n        \"\",\n        \"| # | Ticker | Score | Decision | Price | Model value | MOS | Evidence | Veto |\",\n        \"|---:|---|---:|---|---:|---:|---:|---|---|\",\n    ]\n    for row in top:\n        mos = \"\u2014\" if row[\"mos\"] is None else \"%.2f%%\" % (row[\"mos\"] * 100)\n        model_value = \"\u2014\" if row[\"modelValue\"] is None else \"%.2f\" % row[\"modelValue\"]\n        price = \"\u2014\" if row[\"price\"] is None else \"%.2f\" % row[\"price\"]\n        lines.append(\"| %d | %s | %.2f | %s | %s | %s | %s | %d/%d | %s |\" % (\n            row[\"rank\"], row[\"ticker\"], row[\"score\"], row[\"decision\"], price, model_value, mos,\n            row[\"evidenceVerified\"], row[\"evidenceRejected\"], \"YES\" if row[\"vetoed\"] else \"no\",\n        ))\n    lines += [\"\", \"> Ranking is by score, then MOS, then verified evidence. Vetoed rows remain visible; do not treat rank as a buy list.\", \"\"]\n    with open(\"ranking.md\", \"w\", encoding=\"utf-8\") as handle:\n        handle.write(\"\\n\".join(lines))\n    return {\"ranking\": {\"summary\": summary, \"rows\": normalised}, \"report\": \"ranking.md\"}\n",
+        "inputs": {
+          "rankRows": {
+            "kind": "value",
+            "valueType": "string",
+            "required": true,
+            "nullable": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          "topN": {
+            "kind": "value",
+            "valueType": "integer",
+            "required": true,
+            "nullable": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        },
+        "outputs": {
+          "ranking": {
+            "kind": "value",
+            "valueType": "object",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "report": {
+            "kind": "artifact",
+            "mimeType": "text/markdown"
+          }
+        }
+      },
+      "inputBindings": {
+        "rankRows": {
+          "source": "templateInput",
+          "inputKey": "rankRows"
+        },
+        "topN": {
+          "source": "templateInput",
+          "inputKey": "topN"
+        }
+      }
+    }
+  ],
+  "workbook": {
+    "sampleRows": [
+      {
+        "values": {
+          "rankRows": "[{\"ticker\":\"AAPL\",\"score\":86,\"decision\":\"watchlist\",\"price\":220.5,\"modelValue\":122.81,\"mos\":-0.7954,\"evidenceVerified\":35,\"evidenceRejected\":3},{\"ticker\":\"NVDA\",\"score\":82,\"decision\":\"watchlist\",\"price\":212.21,\"modelValue\":136.64,\"mos\":-0.5531,\"evidenceVerified\":35,\"evidenceRejected\":3},{\"ticker\":\"ORCL\",\"score\":70,\"decision\":\"watchlist\",\"price\":125.54,\"modelValue\":-34.73,\"mos\":null,\"evidenceVerified\":42,\"evidenceRejected\":4}]",
+          "topN": 20
+        }
+      }
+    ],
+    "instructions": [
+      "Paste a JSON array of compact audit rows: ticker, score, decision, price, modelValue, mos, evidenceVerified, evidenceRejected, veto, findings.",
+      "Ranking is deterministic: score desc, MOS desc, verified evidence desc, ticker asc.",
+      "Research aid only; not investment advice."
+    ]
+  }
+}
