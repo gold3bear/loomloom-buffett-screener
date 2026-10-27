@@ -39,14 +39,26 @@ class RankingTest(unittest.TestCase):
 
     def test_invalid_rows_are_excluded(self):
         data = rows() + [{"ticker": "", "score": 99}, {"ticker": "BAD", "score": 101}]
-        result = ranking_code.main({"rankRows": json.dumps(data), "topN": 1})
-        self.assertEqual(result["ranking"]["summary"]["validRows"], 3)
-        self.assertEqual(result["ranking"]["summary"]["invalidRows"], 2)
-        self.assertEqual(len(result["ranking"]["rows"]), 3)
+        with tempfile.TemporaryDirectory() as directory:
+            old = os.getcwd()
+            os.chdir(directory)
+            try:
+                result = ranking_code.main({"rankRows": json.dumps(data), "topN": 1})
+                self.assertEqual(result["ranking"]["summary"]["validRows"], 3)
+                self.assertEqual(result["ranking"]["summary"]["invalidRows"], 2)
+                self.assertEqual(len(result["ranking"]["rows"]), 3)
+            finally:
+                os.chdir(old)
 
     def test_top_n_is_clamped(self):
-        result = ranking_code.main({"rankRows": json.dumps(rows()), "topN": 999})
-        self.assertEqual(result["ranking"]["summary"]["topN"], 100)
+        with tempfile.TemporaryDirectory() as directory:
+            old = os.getcwd()
+            os.chdir(directory)
+            try:
+                result = ranking_code.main({"rankRows": json.dumps(rows()), "topN": 999})
+                self.assertEqual(result["ranking"]["summary"]["topN"], 100)
+            finally:
+                os.chdir(old)
 
 
 if __name__ == "__main__":
