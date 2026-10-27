@@ -216,3 +216,42 @@ model + audit + report + workbook
 - **公开 v3 无法用本报告的 model/evidence 指标对比**，它根本没有云端模型；
 - 本报告中的“原版 6-step”是 v3 之后、v9 之前的中间基线；
 - v9 相对公开 v3 是能力跃迁，相对 6-step 基线则主要是 audit/report 和本地依赖减少。
+
+## 10. 补充：本地依赖到底少了多少
+
+如果只看“跑完一只股票需要本地执行什么”，v9 的改善很大：
+
+| 环节 | 原版 6-step | v9 | 本地依赖变化 |
+|---|---|---|---|
+| 输入 packet / assumptions | 本地 JSON | 本地 JSON，字段更多 | **略增** |
+| 三表 + DCF | 云端 model | 云端 model | 持平 |
+| 证据审计 | 本地 `merge-public-results` | 云端 `stp_audit1` | **移除** |
+| 单行报告 | 本地 `render-report` | 云端 `stp_report` | **移除** |
+| Workbook | 云端 artifact + 本地检查 | 云端 artifact | 生成移除，检查仍在本地 |
+| 跨行排名 | 本地 merge/ranking | 无云端排名 | **仍在本地** |
+| 结果落盘 | 本地文件 | artifact 下载 | 仍需本地文件 |
+| 模板/版本维护 | 本地 JSON | 本地 JSON + sync | 仍需本地 |
+
+### 结论
+
+- **单行执行：v9 本地依赖显著减少。**
+  - 不再需要本地 Python 跑模型；
+  - 不再需要 `merge` 做证据审计；
+  - 不再需要 `render-report` 生成报告；
+  - 不再需要本地生成 workbook。
+- **输入准备：没有减少，甚至更重。**
+  - 需要 `tickerPacket`；
+  - 需要显式 `modelAssumptions`；
+  - 需要 `modelChoice` / `asOf`。
+- **批量层：没有完全解决。**
+  - v9 是 per-row audit/report；
+  - 跨行排序、组合筛选、Top N 仍要本地或 Agent 做。
+- **Workbook 结构校验：仍在本地。**
+  - 云端 Code 不接受 xlsx artifact 输入；
+  - `check-invariants` 仍是可选本地步骤。
+
+所以更准确的说法是：
+
+> **v9 把“单行的模型、审计、报告”从本地搬到了云端；但没有把“输入构造、批量排名、workbook 结构校验”搬走。**
+
+如果按“本地文件依赖”单独打分，v9 明确优于原版；如果按“公开可运行产品”，v9 仍受生产 Code 未开通限制。两者不是一回事。
