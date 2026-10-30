@@ -12,11 +12,8 @@ Built from the v11 Skill directory for the production Listing update.
 
 ```bash
 cd skill
-zip -qr ../release/v11/loomloom-buffett-screener-v11.zip \
-  loomloom-019fad3b-8831-7986-bdd0-db4620e261b8 \
-  -x "*.DS_Store" -x "*/__pycache__/*" -x "*.pyc" \
-  -x "*/model/fixtures/*" -x "*/model/test_*.py" \
-  -x "*/scripts/*.test.mjs" -x "*/scripts/dev/*"
+# Use the script; it excludes internal model/prompt Code.
+./release/v11/build-skill-package.sh
 ```
 
 The package is uploaded separately to the private template via
@@ -33,3 +30,16 @@ request.
 - Package: v11, 123266 bytes, validation `302c1795-90fd-42e3-8dc7-525835f3e18f`
 - Public package download verified: 4 fields (`tickerPacket`, `modelAssumptions`, `modelChoice`, `asOf`)
 - Price: 0.2 CNY/task
+
+
+## Clean package (IP-safe)
+
+The first v11 ZIP accidentally included internal Python sources (`model/*.py`,
+including prompts, audit and model code). The public package must never include
+`model/`, `scripts/run-model.mjs` or `scripts/sync-model-code.mjs`.
+
+A clean package was built at 55,074 bytes with zero `.py` files, validation
+`2aa03a3e-4215-4ffd-9289-1a39ef8abe61`, archive
+`sha256:69e6dcd30a8e6d85d692eebf3bf1e4febc878d3dcdb89e06b5b0abb5be77913c`.
+It is pending Market review; until approved the previously published package
+(123,266 bytes) is still the downloadable one.
