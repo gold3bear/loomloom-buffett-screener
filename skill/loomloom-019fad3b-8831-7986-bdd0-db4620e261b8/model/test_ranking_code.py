@@ -50,6 +50,22 @@ class RankingTest(unittest.TestCase):
             finally:
                 os.chdir(old)
 
+    def test_extracts_compact_rows_from_result_rows(self):
+        payload = {"rows": [{"values": [
+            {"stepId": "stp_audit1", "portId": "audit", "value": {"ticker": "NVDA", "overall_score": 82, "decision": "watchlist", "confidence": "medium", "accepted": True, "audit_status": "warn", "evidence": {"verified": 35, "rejected": 3}, "findings": [], "veto_items": [], "model": {"valuePerShare": 136.64, "marginOfSafetyPct": -0.5531}}},
+            {"stepId": "stp_audit1", "portId": "model", "value": {"ticker": "NVDA", "companyName": "NVIDIA", "price": 212.21}},
+        ]}]}
+        with tempfile.TemporaryDirectory() as directory:
+            old = os.getcwd()
+            os.chdir(directory)
+            try:
+                result = ranking_code.main({"resultRows": json.dumps(payload), "topN": 3})
+                self.assertEqual(result["ranking"]["rows"][0]["ticker"], "NVDA")
+                self.assertEqual(result["ranking"]["rows"][0]["evidenceVerified"], 35)
+                self.assertEqual(result["ranking"]["rows"][0]["modelValue"], 136.64)
+            finally:
+                os.chdir(old)
+
     def test_top_n_is_clamped(self):
         with tempfile.TemporaryDirectory() as directory:
             old = os.getcwd()

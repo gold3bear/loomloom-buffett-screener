@@ -31,7 +31,7 @@ v4 preflight. The v3 template remains available for non-modeling runs.
 
 ## Validation
 
-- 97 Node tests, 53 Python tests
+- 99 Node tests, 54 Python tests
 - Test server: template v9 `7ca2a5d6-dbd7-4e4f-85c1-004d1456bd44` (quarantine repair + cloud report)
 - Final NVDA run `1aa64499-6e2e-404e-b36b-7027d128d614`: preflight ready (246 checks),
   model ready, cloud/local matched, invariant gate 25/25, 17-sheet workbook,
@@ -101,3 +101,13 @@ No LLM or network. Test template `5c639cf5-232e-4a04-9145-251e61ce595d` v1
 `bcb3bf36-a8b5-4759-9f55-796ef3860708`, run
 `fd023094-64a7-4094-9058-b0a59d4c184d`: 3 valid rows, top 2, ORCL vetoed and
 retained.
+
+## Batch extract + rank template
+
+`templates/buffett-cloud-batch.cogfoundry/` reads `run result-rows`, extracts
+`stp_audit1` values and emits ranking + report in one Code step. Verified with
+template `6653c525-04da-4522-b3a0-0aca9c4dfc94`, version
+`ced87ed4-51f4-40f3-9065-ce7ac0715e45`, run
+`fccb218b-26c3-47e0-a20e-bd341a3e4154` (one values-only NVDA row, 0 CNY).
+Full result-rows with artifacts exceeded the upload row limit; strip artifacts
+or split batches.

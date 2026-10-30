@@ -26,6 +26,7 @@ export const CODE_SOURCES = {
   stp_promptf: path.resolve(HERE, "..", "model", "review_prompt_code.py"),
   stp_promptv: path.resolve(HERE, "..", "model", "review_prompt_code.py"),
   stp_rank01: path.resolve(HERE, "..", "model", "ranking_code.py"),
+  stp_batch01: path.resolve(HERE, "..", "model", "ranking_code.py"),
 };
 
 function argsOf(argv) {

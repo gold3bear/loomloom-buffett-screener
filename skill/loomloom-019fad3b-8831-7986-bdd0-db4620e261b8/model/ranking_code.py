@@ -64,10 +64,55 @@ def _normalise(raw: Any, index: int) -> Optional[Dict[str, Any]]:
         "mos": _first_number(row.get("mos"), row.get("marginOfSafetyPct"), row.get("margin_of_safety")),
         "evidenceVerified": int(_first_number(row.get("evidenceVerified"), evidence.get("verified")) or 0),
         "evidenceRejected": int(_first_number(row.get("evidenceRejected"), evidence.get("rejected")) or 0),
+        "accepted": bool(row.get("accepted")) if "accepted" in row else None,
+        "auditStatus": _text(row.get("auditStatus") or row.get("audit_status")),
         "vetoed": bool(row.get("vetoed")) or bool(veto),
         "vetoItems": [str(item) for item in veto[:20]],
         "findingCodes": [str(_obj(item).get("code") or item) for item in findings[:20]],
     }
+
+
+def _extract_result_rows(payload: Any) -> List[Dict[str, Any]]:
+    """Map `run result-rows` rows to compact ranking rows."""
+    data = payload
+    if isinstance(data, str):
+        data = json.loads(data)
+    if isinstance(data, dict):
+        data = data.get("rows")
+    if not isinstance(data, list):
+        raise ValueError("resultRows must be a result-rows object or a row array")
+    compact = []
+    for row in data:
+        if not isinstance(row, dict):
+            continue
+        values = {}
+        for item in row.get("values") or []:
+            if isinstance(item, dict):
+                values[(str(item.get("stepId") or ""), str(item.get("portId") or ""))] = item.get("value")
+        audit = values.get(("stp_audit1", "audit"))
+        if not isinstance(audit, dict):
+            continue
+        model = values.get(("stp_audit1", "model")) or values.get(("stp_model01", "model")) or {}
+        model = _obj(model)
+        audit_model = _obj(audit.get("model"))
+        evidence = _obj(audit.get("evidence"))
+        compact.append({
+            "ticker": audit.get("ticker") or model.get("ticker"),
+            "companyName": model.get("companyName"),
+            "score": audit.get("overall_score"),
+            "decision": audit.get("decision"),
+            "confidence": audit.get("confidence"),
+            "price": model.get("price"),
+            "modelValue": audit_model.get("valuePerShare"),
+            "mos": audit_model.get("marginOfSafetyPct"),
+            "evidenceVerified": evidence.get("verified"),
+            "evidenceRejected": evidence.get("rejected"),
+            "accepted": audit.get("accepted"),
+            "auditStatus": audit.get("audit_status"),
+            "veto": audit.get("veto_items"),
+            "findings": audit.get("findings"),
+        })
+    return compact
 
 
 def _sort_key(row: Dict[str, Any]):
@@ -83,14 +128,19 @@ def _sort_key(row: Dict[str, Any]):
 def main(inputs: Any) -> Dict[str, Any]:
     if not isinstance(inputs, dict):
         inputs = {}
-    raw = inputs.get("rankRows")
-    if isinstance(raw, str):
-        try:
-            rows = json.loads(raw)
-        except ValueError as exc:
-            raise ValueError("rankRows is not valid JSON: %s" % exc)
+    if inputs.get("rankRows") is not None:
+        raw = inputs.get("rankRows")
+        if isinstance(raw, str):
+            try:
+                rows = json.loads(raw)
+            except ValueError as exc:
+                raise ValueError("rankRows is not valid JSON: %s" % exc)
+        else:
+            rows = raw
+    elif inputs.get("resultRows") is not None:
+        rows = _extract_result_rows(inputs.get("resultRows"))
     else:
-        rows = raw
+        raise ValueError("rankRows or resultRows is required")
     if not isinstance(rows, list):
         raise ValueError("rankRows must be a JSON array")
     top_n = int(_num(inputs.get("topN")) or 20)
@@ -112,6 +162,7 @@ def main(inputs: Any) -> Dict[str, Any]:
         "averageScore": average,
         "vetoed": sum(1 for row in normalised if row["vetoed"]),
         "negativeModelValue": sum(1 for row in normalised if row["modelValue"] is not None and row["modelValue"] <= 0),
+        "accepted": sum(1 for row in normalised if row.get("accepted") is True),
     }
     top = normalised[:top_n]
     lines = [
@@ -123,7 +174,7 @@ def main(inputs: Any) -> Dict[str, Any]:
         "",
         "- Rows: **%d** (%d valid, %d invalid)" % (summary["rows"], summary["validRows"], summary["invalidRows"]),
         "- Average score: **%s**" % ("—" if average is None else average),
-        "- Vetoed: **%d**; non-positive model value: **%d**" % (summary["vetoed"], summary["negativeModelValue"]),
+        "- Accepted: **%d**; vetoed: **%d**; non-positive model value: **%d**" % (summary["accepted"], summary["vetoed"], summary["negativeModelValue"]),
         "- Decisions: %s" % (", ".join("%s=%d" % item for item in sorted(decisions.items())) or "—"),
         "",
         "## Top %d" % top_n,
