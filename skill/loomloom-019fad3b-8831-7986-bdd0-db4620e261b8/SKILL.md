@@ -175,9 +175,9 @@ conditional arithmetic, not a target price.
 The local Skill still provides:
 
 - `scripts/preflight.mjs` — independent preflight;
-- `scripts/run-model.mjs` — offline model recomputation;
 - `scripts/merge-public-results.mjs` — evidence audit and cross-row ranking;
 - `scripts/check-invariants.mjs` — workbook cell-level checks;
+- local model source is not shipped in the public package; use the cloud model.
 - `references/decision-policy.md` — veto/scoring policy.
 
 These are **optional**. The cloud model/audit/report no longer require them.
