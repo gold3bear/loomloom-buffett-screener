@@ -22,3 +22,14 @@ zip -qr ../release/v11/loomloom-buffett-screener-v11.zip \
 The package is uploaded separately to the private template via
 `loomloom skill package private upload`; the Listing update is a separate review
 request.
+
+## Published
+
+- Listing title: `美股价值投资批量筛选`
+- Listing version: `01a18bf4-0bf9-79c2-a870-ba261e5d597f`
+- Review: approved
+- Sale: listed
+- Execution: available
+- Package: v11, 123266 bytes, validation `302c1795-90fd-42e3-8dc7-525835f3e18f`
+- Public package download verified: 4 fields (`tickerPacket`, `modelAssumptions`, `modelChoice`, `asOf`)
+- Price: 0.2 CNY/task
