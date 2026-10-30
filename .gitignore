@@ -16,3 +16,6 @@ __pycache__/
 
 # Release build artifacts
 release/v4/*.zip
+
+# Release build artifacts
+release/v11/*.zip
